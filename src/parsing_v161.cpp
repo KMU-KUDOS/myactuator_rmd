@@ -39,7 +39,7 @@ template int64_t unpackLittleEndian<int64_t>(const std::array<uint8_t, 8> &data,
 template uint64_t
 unpackLittleEndian<uint64_t>(const std::array<uint8_t, 8> &data, size_t index);
 
-// --- Response Parsing Function Implementation ---
+// --- Read Command Response Parsing Function Implementation ---
 types::PidDataV161 parseReadPidResponse(const std::array<uint8_t, 8> &data) {
   if (data[0] != protocol::CMD_READ_PID) {
     throw std::runtime_error("Invalid command for PID response");
@@ -157,6 +157,32 @@ parseReadStatus3Response(const std::array<uint8_t, 8> &data) {
   result.current_C = unpackLittleEndian<int16_t>(data, 6);
 
   return result;
+}
+
+// --- Write Command Response Parsing Implementation ---
+uint16_t parseWriteEncoderOffsetResponse(const std::array<uint8_t, 8> &data) {
+  if (data[0] != protocol::CMD_WRITE_ENCODER_OFFSET) {
+    throw std::runtime_error(
+        "Invalid command code for WriteEncoderOffset response");
+  }
+  return unpackLittleEndian<uint16_t>(data, 6);
+}
+
+uint16_t parseWritePosAsZeroRomResponse(const std::array<uint8_t, 8> &data) {
+  if (data[0] != protocol::CMD_WRITE_POS_AS_ZERO_ROM) {
+    throw std::runtime_error(
+        "Invalid command code for WritePosAsZeroRom response");
+  }
+  return unpackLittleEndian<uint16_t>(data, 6);
+}
+
+types::Status1DataV161
+parseClearErrorFlagResponse(const std::array<uint8_t, 8> &data) {
+  if (data[0] != protocol::CMD_READ_STATUS_1) {
+    throw std::runtime_error(
+        "Invalid command code for CLearErrorFlag response");
+  }
+  return parseReadStatus1Response(data);
 }
 
 } // namespace v161_motor_control::parsing

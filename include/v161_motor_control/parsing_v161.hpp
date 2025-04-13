@@ -14,7 +14,7 @@ namespace v161_motor_control::parsing {
 template <typename T>
 T unpackLittleEndian(const std::array<uint8_t, 8> &data, size_t index);
 
-// --- Response Parsing Function Declaration
+// --- Read Command Response Parsing Function Declaration
 types::PidDataV161 parseReadPidResponse(const std::array<uint8_t, 8> &data);
 types::AccelDataV161 parseReadAccelResponse(const std::array<uint8_t, 8> &data);
 types::EncoderDataV161
@@ -29,6 +29,29 @@ types::Status2DataV161
 parseReadStatus2Response(const std::array<uint8_t, 8> &data);
 types::Status3DataV161
 parseReadStatus3Response(const std::array<uint8_t, 8> &data);
+
+// --- Write/Action Command Response Parsing Function Declaration ---
+/**
+ * @brief 0x91: Parse the encoder offset value set in the response
+ * @param data: Array of received data
+ * @return Parsed offset value (uint16_t)
+ */
+uint16_t parseWriteEncoderOffsetResponse(const std::array<uint8_t, 8> &data);
+
+/**
+ * @brief 0x19: Parse the encoder offset value set in the response
+ * @param data: Array of received data
+ * @return Parsed offset value (uint16_t)
+ */
+uint16_t parseWritePosAsZeroRomResponse(const std::array<uint8_t, 8> &data);
+
+/**
+ * @brief 0x9B: Parses the response (same format as Status 1).
+ * @param data: Array of received data
+ * @return Parsed Status1 data
+ */
+types::Status1DataV161
+parseClearErrorFlagResponse(const std::array<uint8_t, 8> &data);
 
 } // namespace v161_motor_control::parsing
 

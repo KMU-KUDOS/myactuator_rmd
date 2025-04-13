@@ -73,4 +73,61 @@ std::array<uint8_t, 8> createReadStatus3Frame() {
   return {protocol::CMD_READ_STATUS_3, 0, 0, 0, 0, 0, 0, 0};
 }
 
+// --- Write Command Frame ---
+std::array<uint8_t, 8>
+createWritePidRamFrame(const types::PidDataV161 &pid_data) {
+  std::array<uint8_t, 8> data = {
+      protocol::CMD_WRITE_PID_RAM, 0, 0, 0, 0, 0, 0, 0};
+
+  data[2] = pid_data.anglePidKp;
+  data[3] = pid_data.anglePidKi;
+  data[4] = pid_data.speedPidKp;
+  data[5] = pid_data.speedPidKi;
+  data[6] = pid_data.iqPidKp;
+  data[7] = pid_data.iqPidKi;
+
+  return data;
+}
+
+std::array<uint8_t, 8>
+createWritePidRomFrame(const types::PidDataV161 &pid_data) {
+  std::array<uint8_t, 8> data = {
+      protocol::CMD_WRITE_PID_ROM, 0, 0, 0, 0, 0, 0, 0};
+
+  data[2] = pid_data.anglePidKp;
+  data[3] = pid_data.anglePidKi;
+  data[4] = pid_data.speedPidKp;
+  data[5] = pid_data.speedPidKi;
+  data[6] = pid_data.iqPidKp;
+  data[7] = pid_data.iqPidKi;
+
+  return data;
+}
+
+std::array<uint8_t, 8>
+createWriteAccelRamFrame(const types::AccelDataV161 &accel_data) {
+  std::array<uint8_t, 8> data = {
+      protocol::CMD_WRITE_ACCEL_RAM, 0, 0, 0, 0, 0, 0, 0};
+
+  packLittleEndian<int32_t>(data, 4, accel_data.acceleration);
+
+  return data;
+}
+
+std::array<uint8_t, 8> createWriteEncoderOffsetFrame(uint16_t offset) {
+  std::array<uint8_t, 8> data = {
+      protocol::CMD_WRITE_ENCODER_OFFSET, 0, 0, 0, 0, 0, 0, 0};
+  // Assuming offset is packed at index 6 based on parsing function
+  packLittleEndian<uint16_t>(data, 6, offset);
+  return data;
+}
+
+std::array<uint8_t, 8> createClearErrorFlagFrame() {
+  return {protocol::CMD_CLEAR_ERROR, 0, 0, 0, 0, 0, 0, 0};
+}
+// Added missing function definition
+std::array<uint8_t, 8> createWritePosAsZeroRomFrame() {
+  return {protocol::CMD_WRITE_POS_AS_ZERO_ROM, 0, 0, 0, 0, 0, 0, 0};
+}
+
 } // namespace v161_motor_control::packing

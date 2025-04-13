@@ -6,6 +6,8 @@
 
 namespace v161_motor_control::types {
 
+// --- Read Command ---
+
 // 0x30: Read PID data command
 struct PidDataV161 {
   uint8_t anglePidKp = 0;
@@ -67,6 +69,13 @@ struct Status3DataV161 {
   float getCurrentA() const { return static_cast<float>(current_A) / 64.0f; }
   float getCurrentB() const { return static_cast<float>(current_B) / 64.0f; }
   float getCurrentC() const { return static_cast<float>(current_C) / 64.0f; }
+};
+
+// --- Write Command ---
+
+// 0x91: Write encoder offset command
+struct EncoderOffsetResponseDataV161 {
+  uint16_t written_offset = 0; // 0 ~ 16383
 };
 
 } // namespace v161_motor_control::types

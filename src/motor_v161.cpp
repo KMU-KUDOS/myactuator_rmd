@@ -61,15 +61,18 @@ bool MotorV161::sendCommandAndGetResponse(
                   << static_cast<int>(response_data_out[0]) << " (expected 0x"
                   << static_cast<int>(expected_response_cmd_code) << ")"
                   << std::dec << '\n';
-        // Decide if this constitutes a failure or if we should wait for another frame
-        // For now, treat as failure for this attempt
-        // return false; // Or continue the loop if retries are left? Let's treat as failure for now.
+        // Decide if this constitutes a failure or if we should wait for another
+        // frame For now, treat as failure for this attempt return false; // Or
+        // continue the loop if retries are left? Let's treat as failure for
+        // now.
       }
     } else {
-      // receiveFrame returned false: Timeout occurred or received frame with unexpected ID (handled inside receiveFrame)
+      // receiveFrame returned false: Timeout occurred or received frame with
+      // unexpected ID (handled inside receiveFrame)
       if (i < retry_count) {
-        // Don't print timeout message here, it's potentially handled in receiveFrame or could be misleading
-        // std::cerr << "Motor " << static_cast<int>(motor_id_)
+        // Don't print timeout message here, it's potentially handled in
+        // receiveFrame or could be misleading std::cerr << "Motor " <<
+        // static_cast<int>(motor_id_)
         //           << ": Receive timeout/failure for cmd 0x" << std::hex
         //           << static_cast<int>(command_data[0]) << std::dec
         //           << ". Retrying (" << i + 1 << "/" << retry_count << ")..."
@@ -77,10 +80,11 @@ bool MotorV161::sendCommandAndGetResponse(
         std::this_thread::sleep_for(std::chrono::milliseconds(
             50)); // Wait a little longer before retrying
       } else {
-         std::cerr << "Motor " << static_cast<int>(motor_id_)
-                   << ": Receive timeout/failure for cmd 0x" << std::hex
-                   << static_cast<int>(command_data[0]) << std::dec
-                   << ". No more retries after " << retry_count << " attempts." << '\n';
+        std::cerr << "Motor " << static_cast<int>(motor_id_)
+                  << ": Receive timeout/failure for cmd 0x" << std::hex
+                  << static_cast<int>(command_data[0]) << std::dec
+                  << ". No more retries after " << retry_count << " attempts."
+                  << '\n';
       }
     }
   }
@@ -88,7 +92,6 @@ bool MotorV161::sendCommandAndGetResponse(
 }
 
 // --- Read Method Implementation ---
-
 types::PidDataV161 MotorV161::readPid() {
   auto command_data = packing::createReadPidFrame();
   std::array<uint8_t, 8> response_data;
@@ -219,6 +222,116 @@ types::Status3DataV161 MotorV161::readStatus3() {
     }
   }
   return {};
+}
+
+// --- Wriet/Action Method Implementation ---
+bool MotorV161::writePidToRam(const types::PidDataV161 &pid_data) {
+  auto command_data = packing::createWritePidRamFrame(pid_data);
+  std::array<uint8_t, 8> response_data;
+
+  // The response of a write command is the same data as the request (Echo)
+  if (sendCommandAndGetResponse(command_data, protocol::CMD_WRITE_PID_RAM,
+                                response_data, 1)) {
+    return response_data == command_data;
+  }
+  return false;
+}
+
+bool MotorV161::writePidToRom(const types::PidDataV161 &pid_data) {
+  std::cout << "Warning: Writing PID to ROM (0x32). Frequent writes may affect "
+               "chip life"
+            << '\n';
+  auto command_data = packing::createWritePidRomFrame(pid_data);
+  std::array<uint8_t, 8> response_data;
+
+  if (sendCommandAndGetResponse(command_data, protocol::CMD_WRITE_PID_ROM,
+                                response_data, 1)) {
+    return response_data == command_data;
+  }
+  return false;
+}
+
+bool MotorV161::writeAccelerationToRam(const types::AccelDataV161 &accel_data) {
+  auto command_data = packing::createWriteAccelRamFrame(accel_data);
+  std::array<uint8_t, 8> response_data;
+
+  if (sendCommandAndGetResponse(command_data, protocol::CMD_WRITE_ACCEL_RAM,
+                                response_data, 1)) {
+    return response_data == command_data;
+  }
+  return false;
+}
+
+bool MotorV161::writeEncoderOffset(uint16_t offset,
+                                   uint16_t &written_offset_out) {
+  auto command_data = packing::createWriteEncoderOffsetFrame(offset);
+  std::array<uint8_t, 8> response_data;
+
+  if (sendCommandAndGetResponse(
+          command_data, protocol::CMD_WRITE_ENCODER_OFFSET, response_data, 1)) {
+    try {
+      written_offset_out =
+          parsing::parseWriteEncoderOffsetResponse(response_data);
+      return true;
+    } catch (const std::exception &e) {
+      std::cerr << "Motor " << static_cast<int>(motor_id_)
+                << " Error parsing WriteEncoderOffset response: " << e.what()
+                << '\n';
+    }
+  }
+  return false;
+}
+
+bool MotorV161::writePositionAsZero(uint16_t &written_offset_out) {
+  std::cout << "Warning: Writing current position as zero to ROM (0x19). "
+               "Requires restart. Frequent writes may effect chip life"
+            << '\n';
+  auto command_data = packing::createWritePosAsZeroRomFrame();
+  std::array<uint8_t, 8> response_data;
+
+  if (sendCommandAndGetResponse(command_data,
+                                protocol::CMD_WRITE_POS_AS_ZERO_ROM,
+                                response_data, 1)) {
+    try {
+      written_offset_out =
+          parsing::parseWritePosAsZeroRomResponse(response_data);
+      return true;
+    } catch (const std::exception &e) {
+      std::cerr << "Motor " << static_cast<int>(motor_id_)
+                << " Error parsing WritePosAsZero response: " << e.what()
+                << '\n';
+    }
+  }
+  return false;
+}
+
+bool MotorV161::clearErrorFlag(types::Status1DataV161 &status_out) {
+  auto command_data = packing::createClearErrorFlagFrame();
+  std::array<uint8_t, 8> response_data;
+
+  if (sendCommandAndGetResponse(command_data, protocol::CMD_READ_STATUS_1,
+                                response_data, 1)) {
+    try {
+      status_out = parsing::parseClearErrorFlagResponse(response_data);
+
+      if (status_out.error_state_raw = 0) {
+        std::cout << "Motor " << static_cast<int>(motor_id_)
+                  << ": Error flags cleared Successfully" << '\n';
+      } else {
+        std::cout << "Motor " << static_cast<int>(motor_id_)
+                  << ": Clear error command sent, but errors might still "
+                     "persist (Raw Error: 0x"
+                  << std::hex << static_cast<int>(status_out.error_state_raw)
+                  << std::dec << "). Ensure error condition is resolved"
+                  << '\n';
+      }
+      return true;
+    } catch (const std::exception &e) {
+      std::cerr << "Motor " << static_cast<int>(motor_id_)
+                << " Error parsing clearErrorFlag response: " << '\n';
+    }
+  }
+  return false;
 }
 
 } // namespace v161_motor_control

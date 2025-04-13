@@ -67,6 +67,56 @@ public:
    */
   types::Status3DataV161 readStatus3();
 
+  // --- Write/Action Method ---
+  /**
+   * @brief 0x31: Write the PID parameters to RAM, which will be initialized on
+   * power off
+   * @param pid_data: PID values to set
+   * @return true on success, false on failure
+   */
+  bool writePidToRam(const types::PidDataV161 &pid_data);
+
+  /**
+   * @brief 0x32: Write PID parameters to ROM, which are retained after power
+   * off (Note: Chip lifetime impact)
+   * @param pid_data: PID values to set
+   * @return True on success, false on failure
+   */
+  bool writePidToRom(const types::PidDataV161 &pid_data);
+
+  /**
+   * @brief 0x34: Write the acceleration value to RAM, which is reset on power
+   * off
+   * @param accel_data: Acceleration value to set
+   * @return True on success, False on failure
+   */
+  bool writeAccelerationToRam(const types::AccelDataV161 &accel_data);
+
+  /**
+   * @brief 0x91: Set the encoder zero offset value
+   * @param offset: Offset value to set (0 ~ 16383)
+   * @param written_offset_out: [Output] Offset value written to the actual
+   * motor
+   * @return True on success, False on failure
+   */
+  bool writeEncoderOffset(uint16_t offset, uint16_t &written_offset_out);
+
+  /**
+   * @brief 0x19: Write the current motor position to zero in ROM (Caution: Chip
+   * lifetime impact, reboot required)
+   * @param written_offset_out: [Output] Recorded zero offset value
+   * @return True on success, False on failure
+   */
+  bool writePositionAsZero(uint16_t &written_offset_out);
+
+  /**
+   * @brief 0x9B: Reset motor error flags (possible after error condition is
+   * cleared)
+   * @param status_out [Output] Motor Status 1 Information after Error Clear
+   * 2return True on success, False on failure
+   */
+  bool clearErrorFlag(types::Status1DataV161 &status_out);
+
 private:
   std::shared_ptr<CanInterface> can_interface_;
 
