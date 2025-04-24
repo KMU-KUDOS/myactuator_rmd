@@ -53,6 +53,19 @@ uint16_t parseWritePosAsZeroRomResponse(const std::array<uint8_t, 8> &data);
 types::Status1DataV161
 parseClearErrorFlagResponse(const std::array<uint8_t, 8> &data);
 
+// --- Control Command Response Parsing Function Declaration ---
+/**
+ * @brief Parses responses from closed loop control instructions (0xA1 to 0xA6)
+ * (same as Status 2)
+ * @param data: Array of received data
+ * @param expected_cmd_code: Command codes to expect in the response (0xA1
+ * through 0xA6)
+ * @return Parsed Status2 data
+ */
+types::Status2DataV161
+parseClosedLoopResponse(const std::array<uint8_t, 8> &data,
+                        uint8_t expected_cmd_code);
+
 } // namespace v161_motor_control::parsing
 
 #endif // V161_MOTOR_CONTROL__PACKING_V161_HPP

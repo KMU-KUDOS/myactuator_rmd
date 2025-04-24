@@ -78,6 +78,13 @@ struct EncoderOffsetResponseDataV161 {
   uint16_t written_offset = 0; // 0 ~ 16383
 };
 
+// --- Control Command ---
+
+enum class SpinDirection : uint8_t {
+  CLOCKWISE = 0x00,
+  COUNTER_CLOCKWISE = 0x01
+};
+
 } // namespace v161_motor_control::types
 
 #endif // V161_MOTOR_CONTROL__TYPES_V161_HPP

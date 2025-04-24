@@ -185,4 +185,25 @@ parseClearErrorFlagResponse(const std::array<uint8_t, 8> &data) {
   return parseReadStatus1Response(data);
 }
 
+// --- Control Command Response Parsing Implementation ---
+types::Status2DataV161
+parseClosedLoopResponse(const std::array<uint8_t, 8> &data,
+                        uint8_t expected_cmd_code) {
+  // First, verify that the response command code matches the code you expect
+  if (data[0] != expected_cmd_code) {
+    throw std::runtime_error(
+        "Invalid command code for closed-loop response Expected 0x" +
+        std::to_string(expected_cmd_code) + " got 0x" +
+        std::to_string(data[0]));
+  }
+  types::Status2DataV161 result;
+
+  result.temperature = unpackLittleEndian<int8_t>(data, 1);
+  result.torque_current = unpackLittleEndian<int16_t>(data, 2);
+  result.speed = unpackLittleEndian<int16_t>(data, 4);
+  result.encoder_position = unpackLittleEndian<uint32_t>(data, 6);
+
+  return result;
+}
+
 } // namespace v161_motor_control::parsing

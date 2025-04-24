@@ -334,4 +334,185 @@ bool MotorV161::clearErrorFlag(types::Status1DataV161 &status_out) {
   return false;
 }
 
+// --- Motor State Control Method Implementation ---
+bool MotorV161::motorOff() {
+  auto command_data = packing::createMotorOffFrame();
+  std::array<uint8_t, 8> response_data;
+
+  // The response is sent to the Echo
+  if (sendCommandAndGetResponse(command_data, protocol::CMD_MOTOR_OFF,
+                                response_data, 1)) {
+    return response_data == command_data;
+  }
+  return false;
+}
+
+bool MotorV161::motorStop() {
+  auto command_data = packing::createMotorStopFrame();
+  std::array<uint8_t, 8> response_data;
+
+  // The response is sent to the Echo
+  if (sendCommandAndGetResponse(command_data, protocol::CMD_MOTOR_STOP,
+                                response_data, 1)) {
+    return response_data == command_data;
+  }
+  return false;
+}
+
+bool MotorV161::motorRun() {
+  auto command_data = packing::createMotorRunFrame();
+  std::array<uint8_t, 8> response_data;
+
+  // The response is sent to the Echo
+  if (sendCommandAndGetResponse(command_data, protocol::CMD_MOTOR_RUN,
+                                response_data, 1)) {
+    return response_data == command_data;
+  }
+  return false;
+}
+
+// --- Closed-Loop Control Method Implementation ---
+bool MotorV161::setTorqueControl(int16_t torque_setpoint,
+                                 types::Status2DataV161 &feedback_out) {
+  auto command_data = packing::createTorqueControlFrame(torque_setpoint);
+  std::array<uint8_t, 8> response_data;
+
+  if (sendCommandAndGetResponse(command_data, protocol::CMD_TORQUE_CONTROL,
+                                response_data,
+                                0)) { // Control commands run without retries
+    try {
+      feedback_out = parsing::parseClosedLoopResponse(
+          response_data, protocol::CMD_TORQUE_CONTROL);
+
+      return true;
+    } catch (const std::exception &e) {
+      std::cerr << "Motor " << static_cast<int>(motor_id_)
+                << " Error parsing TorqueControl response: " << e.what()
+                << '\n';
+    }
+  }
+  return false;
+}
+
+bool MotorV161::setSpeedControl(int32_t speed_setpoint,
+                                types::Status2DataV161 &feedback_out) {
+  auto command_data = packing::createSpeedControlFrame(speed_setpoint);
+  std::array<uint8_t, 8> response_data;
+
+  if (sendCommandAndGetResponse(command_data, protocol::CMD_SPEED_CONTROL,
+                                response_data, 0)) {
+    try {
+      feedback_out = parsing::parseClosedLoopResponse(
+          response_data, protocol::CMD_SPEED_CONTROL);
+
+      return true;
+    } catch (const std::exception &e) {
+      std::cerr << "Motor " << static_cast<int>(motor_id_)
+                << " Error parsing SpeedControl response: " << e.what() << '\n';
+    }
+  }
+  return false;
+}
+
+bool MotorV161::setPositionControl1(int32_t angle_setpoint,
+                                    types::Status2DataV161 &feedback_out) {
+  auto command_data = packing::createPositionControl1Frame(angle_setpoint);
+  std::array<uint8_t, 8> response_data;
+
+  if (sendCommandAndGetResponse(command_data, protocol::CMD_POSITION_CONTROL_1,
+                                response_data, 0)) {
+    try {
+      feedback_out = parsing::parseClosedLoopResponse(
+          response_data, protocol::CMD_POSITION_CONTROL_1);
+
+      return true;
+    } catch (const std::exception &e) {
+      std::cerr << "Motor " << static_cast<int>(motor_id_)
+                << " Error parsing PositionControl1 response: " << e.what()
+                << '\n';
+    }
+  }
+  return false;
+}
+
+bool MotorV161::setPositionControl2(int32_t angle_setpoint, uint16_t max_speed,
+                                    types::Status2DataV161 &feedback_out) {
+  auto command_data =
+      packing::createPositionControl2Frame(angle_setpoint, max_speed);
+  std::array<uint8_t, 8> response_data;
+
+  if (sendCommandAndGetResponse(command_data, protocol::CMD_POSITION_CONTROL_2,
+                                response_data, 0)) {
+    try {
+      feedback_out = parsing::parseClosedLoopResponse(
+          response_data, protocol::CMD_POSITION_CONTROL_2);
+
+      return true;
+    } catch (const std::exception &e) {
+      std::cerr << "Motor " << static_cast<int>(motor_id_)
+                << " Error parsing PositionControl2 response: " << e.what()
+                << '\n';
+    }
+  }
+  return false;
+}
+
+bool MotorV161::setPositionControl3(uint16_t angle_setpoint,
+                                    types::SpinDirection direction,
+                                    types::Status2DataV161 &feedback_out) {
+  if (angle_setpoint > 35999) {
+    std::cerr
+        << "Warning: angle_setpoint for PositionControl3 should be 0 ~ 35999"
+        << '\n';
+    // angle_setpoint = angle_setpoint % 36000; // Or handle as error
+  }
+  auto command_data =
+      packing::createPositionControl3Frame(angle_setpoint, direction);
+  std::array<uint8_t, 8> response_data;
+
+  if (sendCommandAndGetResponse(command_data, protocol::CMD_POSITION_CONTROL_3,
+                                response_data, 0)) {
+    try {
+      feedback_out = parsing::parseClosedLoopResponse(
+          response_data, protocol::CMD_POSITION_CONTROL_3);
+
+      return true;
+    } catch (const std::exception &e) {
+      std::cerr << "Motor " << static_cast<int>(motor_id_)
+                << " Error parsing PositionControl3 response: " << e.what()
+                << '\n';
+    }
+  }
+  return false;
+}
+
+bool MotorV161::setPositionControl4(uint16_t angle_setpoint,
+                                    types::SpinDirection direction,
+                                    uint16_t max_speed,
+                                    types::Status2DataV161 &feedback_out) {
+  if (angle_setpoint > 35999) {
+    std::cerr
+        << "Warning: angle_setpoint for PositionControl4  should be 0 ~ 35999"
+        << '\n';
+  }
+  auto command_data = packing::createPositionControl4Frame(
+      angle_setpoint, direction, max_speed);
+  std::array<uint8_t, 8> response_data;
+
+  if (sendCommandAndGetResponse(command_data, protocol::CMD_POSITION_CONTROL_4,
+                                response_data, 0)) {
+    try {
+      feedback_out = parsing::parseClosedLoopResponse(
+          response_data, protocol::CMD_POSITION_CONTROL_4);
+
+      return true;
+    } catch (const std::exception &e) {
+      std::cerr << "Motor " << static_cast<int>(motor_id_)
+                << " Error parsing PositionControl4 response: " << e.what()
+                << '\n';
+    }
+  }
+  return false;
+}
+
 } // namespace v161_motor_control
