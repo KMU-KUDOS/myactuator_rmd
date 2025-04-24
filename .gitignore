@@ -1,1 +1,17 @@
-build
+# Build
+/build/
+
+# Cache
+/.cache/
+
+# IDE
+/.vscode/
+/.vs/
+/.idea/
+/.cursor/
+.cursorignore
+/.trae
+
+# System
+.DS_Store
+Thumbs.db
