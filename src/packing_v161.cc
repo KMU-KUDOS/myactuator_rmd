@@ -1,5 +1,5 @@
-#include "v161_motor_control/packing_v161.hpp"
-#include "v161_motor_control/protocol_v161.hpp" // Command code
+#include "v161_motor_control/packing_v161.h"
+#include "v161_motor_control/protocol_v161.h" // Command code
 
 #include <cstdint>
 #include <cstring>   // for memcpy
@@ -171,7 +171,9 @@ std::array<uint8_t, 8> createPositionControl1Frame(int32_t angle_setpoint) {
   return data;
 }
 
-std::array<uint8_t, 8> createPositionControl2Frame(int32_t angle_setpoint, uint16_t max_speed) { // Add max_speed parameter
+std::array<uint8_t, 8>
+createPositionControl2Frame(int32_t angle_setpoint,
+                            uint16_t max_speed) { // Add max_speed parameter
   std::array<uint8_t, 8> data = {
       protocol::CMD_POSITION_CONTROL_2, 0, 0, 0, 0, 0, 0, 0};
   // speed limit (uint16_t) in bytes 2-3, position (int32_t) in bytes 4-7

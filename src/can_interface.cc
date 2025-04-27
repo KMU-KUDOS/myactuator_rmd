@@ -1,5 +1,5 @@
-#include "v161_motor_control/can_interface.hpp"
-#include "v161_motor_control/protocol_v161.hpp" // for getV161ResponseId
+#include "v161_motor_control/can_interface.h"
+#include "v161_motor_control/protocol_v161.h" // for getV161ResponseId
 
 #include <algorithm> // for std::find
 #include <cstdint>

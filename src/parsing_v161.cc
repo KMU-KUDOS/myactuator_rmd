@@ -1,5 +1,5 @@
-#include "v161_motor_control/parsing_v161.hpp"
-#include "v161_motor_control/protocol_v161.hpp" // Command code
+#include "v161_motor_control/parsing_v161.h"
+#include "v161_motor_control/protocol_v161.h" // Command code
 
 #include <cstdint>
 #include <cstring>   // for memcpy

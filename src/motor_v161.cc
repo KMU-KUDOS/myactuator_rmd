@@ -1,7 +1,7 @@
-#include "v161_motor_control/motor_v161.hpp"
-#include "v161_motor_control/packing_v161.hpp"
-#include "v161_motor_control/parsing_v161.hpp"
-#include "v161_motor_control/protocol_v161.hpp"
+#include "v161_motor_control/motor_v161.h"
+#include "v161_motor_control/packing_v161.h"
+#include "v161_motor_control/parsing_v161.h"
+#include "v161_motor_control/protocol_v161.h"
 
 #include <chrono> // for milliseconds
 #include <cstdint>
