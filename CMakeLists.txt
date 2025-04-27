@@ -11,8 +11,8 @@ endif()
 
 # --- third_party CAN Library ---
 add_library(myactuator_rmd_can STATIC
-    third_party/myactuator_rmd_can/src/node.cpp
-    third_party/myactuator_rmd_can/src/utilities.cpp
+    third_party/myactuator_rmd_can/src/node.cc
+    third_party/myactuator_rmd_can/src/utilities.cc
 )
 
 # Header file path
@@ -26,10 +26,10 @@ target_link_libraries(myactuator_rmd_can PUBLIC pthread)
 
 # --- Build the main library ---
 add_library(v161_motor_control_lib STATIC
-    src/can_interface.cpp
-    src/packing_v161.cpp
-    src/parsing_v161.cpp
-    src/motor_v161.cpp
+    src/can_interface.cc
+    src/packing_v161.cc
+    src/parsing_v161.cc
+    src/motor_v161.cc
 )
 
 # Header file path
@@ -44,7 +44,7 @@ target_link_libraries(v161_motor_control_lib PUBLIC
 
 
 # --- Build an executable ---
-add_executable(main_app src/main.cpp)
+add_executable(main_app src/main.cc)
 
 # Main library link
 target_link_libraries(main_app PRIVATE v161_motor_control_lib)
