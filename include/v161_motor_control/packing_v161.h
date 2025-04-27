@@ -7,7 +7,7 @@
 #include <cstring>
 #include <stdexcept>
 
-#include "types_v161.hpp"
+#include "types_v161.h"
 
 namespace v161_motor_control::packing {
 

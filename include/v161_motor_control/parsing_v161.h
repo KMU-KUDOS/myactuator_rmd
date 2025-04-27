@@ -1,7 +1,7 @@
 #ifndef V161_MOTOR_CONTROL__PARSING_V161_HPP
 #define V161_MOTOR_CONTROL__PARSING_V161_HPP
 
-#include "types_v161.hpp"
+#include "types_v161.h"
 #include <array>
 #include <cstddef>
 #include <cstdint>

@@ -8,8 +8,8 @@
 #include <string>
 #include <vector>
 
-#include "myactuator_rmd/can/exceptions.hpp"
-#include "myactuator_rmd/can/node.hpp"
+#include "myactuator_rmd/can/exceptions.h"
+#include "myactuator_rmd/can/node.h"
 
 namespace v161_motor_control {
 
