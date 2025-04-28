@@ -1,0 +1,114 @@
+---
+# Configure clang-tidy for this project
+
+# Inherit from Google's configuration for most settings
+Checks: >
+  -*,
+  google-*,
+  bugprone-*,
+  performance-*,
+  modernize-*,
+  readability-*,
+  portability-*,
+  cppcoreguidelines-*,
+
+  # Customizations based on @instructions.mdc:
+  # Naming conventions
+  -readability-identifier-naming, # Disable generic one, use specific below
+
+  # Abseil usage encouragement (enable specific checks)
+  modernize-use-absl-*,           # Enable relevant Abseil modernization checks
+
+  # Prohibit exceptions (if specific checks exist, enable them)
+  # Example: -google-runtime-error, performance-no-exceptions, etc.
+  # Note: clang-tidy might not have perfect exception checks, rely on code review too.
+  -misc-throw-by-value-catch-by-reference, # Often related to exceptions
+
+  # Style adjustments
+  -google-build-using-namespace, # Already disallowed in headers by instructions
+  -google-readability-namespace-comments, # Disable namespace end comments
+  -google-runtime-int,          # Allow built-in int types where appropriate
+  -google-runtime-references,   # Allow non-const references if needed
+  -cppcoreguidelines-owning-memory, # May conflict with some patterns
+  -modernize-use-trailing-return-type, # Google style prefers leading return type
+  -modernize-use-auto,          # Use auto judiciously per instructions
+  -readability-magic-numbers,   # Use constants instead (kConstantName)
+  -readability-braces-around-statements, # Handled by clang-format
+
+  # Enable specific naming checks aligned with Google Style
+  # Type naming conventions
+  readability-identifier-naming.ClassCase: CamelCase
+  readability-identifier-naming.StructCase: CamelCase
+  readability-identifier-naming.EnumCase: UPPER_CASE
+  readability-identifier-naming.TypedefCase: CamelCase
+  readability-identifier-naming.TypeAliasCase: CamelCase
+  readability-identifier-naming.TemplateParameterCase: CamelCase
+  
+  # Variable and member naming conventions
+  readability-identifier-naming.VariableCase: lower_case
+  readability-identifier-naming.ParameterCase: lower_case
+  readability-identifier-naming.MemberCase: lower_case
+  readability-identifier-naming.PrivateMemberSuffix: _
+  readability-identifier-naming.ProtectedMemberSuffix: _
+  
+  # Function naming conventions
+  readability-identifier-naming.FunctionCase: CamelCase
+  readability-identifier-naming.MethodCase: CamelCase
+  
+  # Constant naming conventions 
+  readability-identifier-naming.ConstantCase: CamelCase
+  readability-identifier-naming.ConstantPrefix: k
+  readability-identifier-naming.EnumConstantCase: UPPER_CASE
+  
+  # Namespace and macro naming
+  readability-identifier-naming.NamespaceCase: lower_case
+  readability-identifier-naming.MacroCase: UPPER_CASE
+
+  # 모든 상수 관련 설정은 위에서 통합적으로 처리함
+
+# Specifically enable some C++17 features
+CheckOptions:
+  - key: modernize-use-nullptr.NullMacros
+    value: 'NULL'
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.ConstexprVariableCase
+    value: CamelCase
+  - key: readability-identifier-naming.ConstexprVariablePrefix
+    value: k
+  - key: readability-identifier-naming.EnumCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumConstantPrefix
+    value: k
+  - key: readability-identifier-naming.FunctionCase
+    value: lower_case
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.GlobalConstantPrefix
+    value: k
+  - key: readability-identifier-naming.StaticConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.StaticConstantPrefix
+    value: k
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: _
+  - key: readability-identifier-naming.ProtectedMemberSuffix
+    value: _
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: 0
+  - key: readability-identifier-naming.IgnoreNamespaces
+    value: 'false'
+  - key: modernize-loop-convert.MinConfidence
+    value: 'reasonable' # Adjust confidence for loop conversion if needed
+
+# Explicitly setting these to prefer Google style with the modifications in @instructions.mdc
+FormatStyle: 'file'
+HeaderFilterRegex: '^(src|include|tests)/' # Only check project headers/sources
+WarningsAsErrors: '*' # Treat all warnings as errors
+UseColor: true
