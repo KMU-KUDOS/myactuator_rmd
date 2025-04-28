@@ -7,7 +7,7 @@
 #include <cstring>
 #include <stdexcept>
 
-#include "types_v161.h"
+#include "myactuator_rmd/protocol/types_v161.h"
 
 namespace v161_motor_control::packing {
 

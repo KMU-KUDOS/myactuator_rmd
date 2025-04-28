@@ -1,5 +1,5 @@
-#include "v161_motor_control/parsing_v161.h"
-#include "v161_motor_control/protocol_v161.h" // Command code
+#include "myactuator_rmd/protocol/parsing_v161.h"
+#include "myactuator_rmd/protocol/protocol_v161.h" // Command code
 
 #include <cstdint>
 #include <cstring>   // for memcpy
@@ -178,11 +178,18 @@ uint16_t parseWritePosAsZeroRomResponse(const std::array<uint8_t, 8> &data) {
 
 types::Status1DataV161
 parseClearErrorFlagResponse(const std::array<uint8_t, 8> &data) {
-  if (data[0] != protocol::CMD_READ_STATUS_1) {
+  if (data[0] != protocol::CMD_CLEAR_ERROR) {
     throw std::runtime_error(
-        "Invalid command code for CLearErrorFlag response");
+        "Invalid command code for ClearErrorFlag response");
   }
-  return parseReadStatus1Response(data);
+  
+  // 직접 Status1 데이터를 파싱합니다 (parseReadStatus1Response의 내부 구현과 동일)
+  types::Status1DataV161 result;
+  result.temperature = unpackLittleEndian<int8_t>(data, 1);
+  result.voltage = unpackLittleEndian<uint16_t>(data, 3);
+  result.error_state_raw = data[7];
+  
+  return result;
 }
 
 // --- Control Command Response Parsing Implementation ---

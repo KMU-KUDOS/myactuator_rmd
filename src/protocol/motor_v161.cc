@@ -1,7 +1,7 @@
-#include "v161_motor_control/motor_v161.h"
-#include "v161_motor_control/packing_v161.h"
-#include "v161_motor_control/parsing_v161.h"
-#include "v161_motor_control/protocol_v161.h"
+#include "myactuator_rmd/protocol/motor_v161.h"
+#include "myactuator_rmd/protocol/packing_v161.h"
+#include "myactuator_rmd/protocol/parsing_v161.h"
+#include "myactuator_rmd/protocol/protocol_v161.h"
 
 #include <chrono> // for milliseconds
 #include <cstdint>
@@ -180,7 +180,7 @@ types::Status1DataV161 MotorV161::readStatus1() {
   auto command_data = packing::createReadStatus1Frame();
   std::array<uint8_t, 8> response_data;
 
-  if (sendCommandAndGetResponse(command_data, protocol::CMD_READ_STATUS_1,
+  if (sendCommandAndGetResponse(command_data, protocol::CMD_CLEAR_ERROR,
                                 response_data, 1)) {
     try {
       return parsing::parseReadStatus1Response(response_data);
@@ -309,7 +309,7 @@ bool MotorV161::clearErrorFlag(types::Status1DataV161 &status_out) {
   auto command_data = packing::createClearErrorFlagFrame();
   std::array<uint8_t, 8> response_data;
 
-  if (sendCommandAndGetResponse(command_data, protocol::CMD_READ_STATUS_1,
+  if (sendCommandAndGetResponse(command_data, protocol::CMD_CLEAR_ERROR,
                                 response_data, 1)) {
     try {
       status_out = parsing::parseClearErrorFlagResponse(response_data);

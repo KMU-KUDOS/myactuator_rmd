@@ -1,5 +1,5 @@
-#include "v161_motor_control/packing_v161.h"
-#include "v161_motor_control/protocol_v161.h" // Command code
+#include "myactuator_rmd/protocol/packing_v161.h"
+#include "myactuator_rmd/protocol/protocol_v161.h" // Command code
 
 #include <cstdint>
 #include <cstring>   // for memcpy

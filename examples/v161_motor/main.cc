@@ -1,5 +1,5 @@
-#include "v161_motor_control/can_interface.h"
-#include "v161_motor_control/motor_v161.h"
+#include "myactuator_rmd/can_interface.h"
+#include "myactuator_rmd/protocol/motor_v161.h"
 
 #include <chrono> // for std::chrono::milliseconds
 #include <cstdio>

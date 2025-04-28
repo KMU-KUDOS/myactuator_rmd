@@ -4,8 +4,8 @@
 #include <cstdint>
 #include <memory> // for std::shared_ptr or reference
 
-#include "can_interface.h"
-#include "types_v161.h"
+#include "myactuator_rmd/can_interface.h"
+#include "myactuator_rmd/protocol/types_v161.h"
 
 namespace v161_motor_control {
 
