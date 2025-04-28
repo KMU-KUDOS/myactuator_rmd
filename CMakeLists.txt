@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(v161_motor_control VERSION 0.0.1 LANGUAGES CXX)
+project(myactuator_rmd VERSION 0.0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -9,45 +9,53 @@ if(NOT UNIX)
     message(FATAL_ERROR "Currently this driver only supports Linux!")
 endif()
 
-# --- third_party CAN Library ---
-add_library(myactuator_rmd_can STATIC
-    third_party/myactuator_rmd_can/src/node.cc
-    third_party/myactuator_rmd_can/src/utilities.cc
-)
+# Find required packages
+find_package(Threads REQUIRED)
 
-# Header file path
-target_include_directories(myactuator_rmd_can PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/myactuator_rmd_can/include
-)
-
-# Requires a pthread link to use Linux SocketCAN
-target_link_libraries(myactuator_rmd_can PUBLIC pthread)
-
-
-# --- Build the main library ---
-add_library(v161_motor_control_lib STATIC
+# --- Build the myactuator_rmd shared library ---
+add_library(myactuator_rmd SHARED
+    # CAN implementation files
+    src/can/node.cc
+    src/can/utilities.cc
+    # Protocol implementation files
+    src/protocol/motor_v161.cc
+    src/protocol/packing_v161.cc
+    src/protocol/parsing_v161.cc
+    # Interface implementation
     src/can_interface.cc
-    src/packing_v161.cc
-    src/parsing_v161.cc
-    src/motor_v161.cc
 )
 
-# Header file path
-target_include_directories(v161_motor_control_lib PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
+# Header file paths
+target_include_directories(myactuator_rmd PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
 )
 
-# CAN library link
-target_link_libraries(v161_motor_control_lib PUBLIC
-    myactuator_rmd_can
+# Link with pthread for Linux SocketCAN
+target_link_libraries(myactuator_rmd PUBLIC
+    Threads::Threads
 )
 
+# --- Build v161_example executable ---
+add_executable(v161_example
+    examples/v161_motor/main.cc
+)
 
-# --- Build an executable ---
-add_executable(main_app src/main.cc)
+# Link with myactuator_rmd library
+target_link_libraries(v161_example PRIVATE
+    myactuator_rmd
+)
 
-# Main library link
-target_link_libraries(main_app PRIVATE v161_motor_control_lib)
+# --- Installation settings ---
+install(TARGETS myactuator_rmd v161_example
+    RUNTIME DESTINATION bin
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+)
+
+install(DIRECTORY include/
+    DESTINATION include
+)
 
 message(STATUS "Project: ${PROJECT_NAME}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
