@@ -2,10 +2,11 @@
 #define V161_MOTOR_CONTROL__PACKING_V161_HPP
 
 #include <array>
+#include <stdexcept>
+
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <stdexcept>
 
 #include "myactuator_rmd/protocol/types_v161.h"
 
@@ -22,12 +23,12 @@ std::array<uint8_t, 8> createReadStatus2Frame();
 std::array<uint8_t, 8> createReadStatus3Frame();
 
 // --- Write/Action Command Frame ---
-std::array<uint8_t, 8>
-createWritePidRamFrame(const types::PidDataV161 &pid_data);
-std::array<uint8_t, 8>
-createWritePidRomFrame(const types::PidDataV161 &pid_data);
-std::array<uint8_t, 8>
-createWriteAccelRamFrame(const types::AccelDataV161 &accel_data);
+std::array<uint8_t, 8> createWritePidRamFrame(
+    const types::PidDataV161& pid_data);
+std::array<uint8_t, 8> createWritePidRomFrame(
+    const types::PidDataV161& pid_data);
+std::array<uint8_t, 8> createWriteAccelRamFrame(
+    const types::AccelDataV161& accel_data);
 std::array<uint8_t, 8> createWriteEncoderOffsetFrame(uint16_t offset);
 std::array<uint8_t, 8> createWritePosAsZeroRomFrame();
 std::array<uint8_t, 8> createClearErrorFlagFrame();
@@ -72,9 +73,8 @@ std::array<uint8_t, 8> createPositionControl2Frame(int32_t angle_setpoint,
  * degree/LSB)
  * @param direction rotation direction (CLOCKWISE or COUNTER_CLOCKWISE)
  */
-std::array<uint8_t, 8>
-createPositionControl3Frame(uint16_t angle_setpoint,
-                            types::SpinDirection direction);
+std::array<uint8_t, 8> createPositionControl3Frame(
+    uint16_t angle_setpoint, types::SpinDirection direction);
 
 /**
  * @brief Generate position control command 4 frames (0xA6, single rotation
@@ -84,14 +84,15 @@ createPositionControl3Frame(uint16_t angle_setpoint,
  * @param direction rotation direction (CLOCKWISE or COUNTER_CLOCKWISE)
  * @param max_speed Maximum speed limit (uint16_t, unit: 1 dps/LSB)
  */
-std::array<uint8_t, 8>
-createPositionControl4Frame(uint16_t angle_setpoint,
-                            types::SpinDirection direction, uint16_t max_speed);
+std::array<uint8_t, 8> createPositionControl4Frame(
+    uint16_t angle_setpoint,
+    types::SpinDirection direction,
+    uint16_t max_speed);
 
 // --- Helper function for packing data (will be used more in Write command) ---
 template <typename T>
-void packLittleEndian(std::array<uint8_t, 8> &data, size_t index, T value);
+void packLittleEndian(std::array<uint8_t, 8>& data, size_t index, T value);
 
-} // namespace v161_motor_control::packing
+}  // namespace v161_motor_control::packing
 
-#endif // V161_MOTOR_CONTROL__PACKING_V161_HPP
+#endif  // V161_MOTOR_CONTROL__PACKING_V161_HPP

@@ -1,16 +1,17 @@
+#include <chrono>   // for std::chrono::milliseconds
+#include <iomanip>  // for std::fixed, std::setprecision
+#include <iostream>
+#include <memory>  // for std::make_shared
+#include <thread>  // for std::this_thread::sleep_for
+#include <vector>
+
+#include <cstdio>
+
 #include "myactuator_rmd/can_interface.h"
 #include "myactuator_rmd/protocol/motor_v161.h"
 
-#include <chrono> // for std::chrono::milliseconds
-#include <cstdio>
-#include <iomanip> // for std::fixed, std::setprecision
-#include <iostream>
-#include <memory> // for std::make_shared
-#include <thread> // for std::this_thread::sleep_for
-#include <vector>
-
 // Helper function to print Status 1 data
-void printStatus1(const v161_motor_control::types::Status1DataV161 &status) {
+void printStatus1(const v161_motor_control::types::Status1DataV161& status) {
   std::cout << "  Temp: " << static_cast<int>(status.temperature) << " C"
             << ", Voltage: " << std::fixed << std::setprecision(1)
             << static_cast<float>(status.voltage) * 0.1f << " V"
@@ -21,7 +22,7 @@ void printStatus1(const v161_motor_control::types::Status1DataV161 &status) {
 }
 
 // Helper function to print Status 2 data
-void printStatus2(const v161_motor_control::types::Status2DataV161 &status) {
+void printStatus2(const v161_motor_control::types::Status2DataV161& status) {
   // Calculate torque current in Amps (approximate, depends on motor scaling)
   float torque_amps =
       static_cast<float>(status.torque_current) * (33.0f / 2048.0f);
@@ -34,7 +35,7 @@ void printStatus2(const v161_motor_control::types::Status2DataV161 &status) {
 }
 
 // Helper function to print Status 3 data
-void printStatus3(const v161_motor_control::types::Status3DataV161 &status) {
+void printStatus3(const v161_motor_control::types::Status3DataV161& status) {
   std::cout << "  Phase A: " << std::fixed << std::setprecision(2)
             << status.getCurrentA() << " A"
             << ", Phase B: " << status.getCurrentB() << " A"
@@ -73,7 +74,8 @@ int main() {
     // Read Accel
     auto accel_data = motor.readAcceleration();
     std::cout << "[Read Accel (0x33)] Acceleration: " << accel_data.acceleration
-              << " dps/s" << ")" << '\n'
+              << " dps/s"
+              << ")" << '\n'
               << '\n';
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -146,7 +148,7 @@ int main() {
       std::cerr << " -> Failed to write PID to RAM" << '\n';
     }
     std::this_thread::sleep_for(
-        std::chrono::milliseconds(200)); // Wait after writing
+        std::chrono::milliseconds(200));  // Wait after writing
 
     // Read acceleration value and write it back to RAM (no value change)
     std::cout << "Write Acceleration to RAM (0x34)..." << '\n';
@@ -165,7 +167,8 @@ int main() {
     // connecting real motors, run this test carefully as it can affect motor
     // behavior
     std::cout << '\n' << "Write Encoder Offset (0x91)..." << '\n';
-    uint16_t new_offset = (initial_encoder.offset + 0) % 16384; // Stay in scope
+    uint16_t new_offset =
+        (initial_encoder.offset + 0) % 16384;  // Stay in scope
     uint16_t written_offset = 0;
     std::cout << " -> Successfully sent write new offset: " << new_offset
               << '\n';
@@ -222,7 +225,8 @@ int main() {
     // available during testing
     // !!! Caution !!!
 
-    v161_motor_control::types::Status2DataV161 feedback; // For storing feedback
+    v161_motor_control::types::Status2DataV161
+        feedback;  // For storing feedback
 
     // --- Check motor status and stop first for safety ---
     std::cout << '\n' << "--- Initializing Motor State ---" << '\n';
@@ -240,7 +244,7 @@ int main() {
     }
 
     std::this_thread::sleep_for(
-        std::chrono::milliseconds(500)); // Wait long enough for it to turn off
+        std::chrono::milliseconds(500));  // Wait long enough for it to turn off
 
     // Control Motor Command
     std::cout << '\n'
@@ -250,7 +254,7 @@ int main() {
     // Speed control test (e.g. 0 dps)
     std::cout << '\n'
               << "Testing Speed Control (0xA2)... Target: 30.0 dps" << '\n';
-    int32_t speed_sp_dps100 = 0 * 100; // 0 dps * 100 (0.01 dps/LSB)
+    int32_t speed_sp_dps100 = 0 * 100;  // 0 dps * 100 (0.01 dps/LSB)
 
     if (motor.setSpeedControl(speed_sp_dps100, feedback)) {
       std::cout << " -> Speed command sent. Feedback:" << '\n';
@@ -271,8 +275,8 @@ int main() {
         << '\n'
         << "Testing Position Control 2 (0xA4)... Target: 0 deg. Max Speed 0 dps"
         << '\n';
-    int32_t angle_sp_deg100 = 0 * 100; // 0 deg * 0 (0.01 deg/LSB)
-    uint16_t max_speed_dps = 0;        // 0 dps
+    int32_t angle_sp_deg100 = 0 * 100;  // 0 deg * 0 (0.01 deg/LSB)
+    uint16_t max_speed_dps = 0;         // 0 dps
 
     if (motor.setPositionControl2(angle_sp_deg100, max_speed_dps, feedback)) {
       std::cout << " -> Position 2 command sent. Feedback:" << '\n';
@@ -283,7 +287,7 @@ int main() {
     std::cout << " -> Moving to 0 deg for 3 seconds (adjust time as needed)..."
               << '\n';
     std::this_thread::sleep_for(std::chrono::seconds(
-        3)); // Time to reach the target location (long enough)
+        3));  // Time to reach the target location (long enough)
 
     // Position Control Test 4 (Single Turn, Directional, Speed Limit) -
     // Example: 180 degree travel (CCW)
@@ -297,7 +301,8 @@ int main() {
     if (motor.setPositionControl4(
             angle_sp_single_deg100,
             v161_motor_control::types::SpinDirection::COUNTER_CLOCKWISE,
-            max_speed_single_dps, feedback)) {
+            max_speed_single_dps,
+            feedback)) {
       std::cout << " -> Position 4 command sent. Feedback:" << '\n';
       printStatus2(feedback);
     } else {
@@ -312,7 +317,7 @@ int main() {
     // and model! Example: Small torque value (equivalent to 0.1 A) - value
     // needs to be calculated
     int16_t torque_sp =
-        static_cast<int16_t>(0.1f * (2000.0f / 32.0f)); // 0.1A -> approx 62
+        static_cast<int16_t>(0.1f * (2000.0f / 32.0f));  // 0.1A -> approx 62
     std::cout << '\n'
               << "Testing Torque Control (0xA1)... Target: " << torque_sp
               << " (~0.1A)" << '\n';
@@ -337,7 +342,7 @@ int main() {
     motor.motorOff();
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     std::cerr << "An error occurred: " << e.what() << '\n';
     return 1;
   }

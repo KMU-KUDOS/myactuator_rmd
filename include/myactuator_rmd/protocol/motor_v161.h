@@ -1,8 +1,9 @@
 #ifndef V161_MOTOR_CONTROL__MOTOR_V161_HPP
 #define V161_MOTOR_CONTROL__MOTOR_V161_HPP
 
+#include <memory>  // for std::shared_ptr or reference
+
 #include <cstdint>
-#include <memory> // for std::shared_ptr or reference
 
 #include "myactuator_rmd/can_interface.h"
 #include "myactuator_rmd/protocol/types_v161.h"
@@ -10,7 +11,7 @@
 namespace v161_motor_control {
 
 class MotorV161 {
-public:
+ public:
   /**
    * @brief : Constructor
    * @param can_interface : Shared CAN Interface Objects
@@ -74,7 +75,7 @@ public:
    * @param pid_data: PID values to set
    * @return true on success, false on failure
    */
-  bool writePidToRam(const types::PidDataV161 &pid_data);
+  bool writePidToRam(const types::PidDataV161& pid_data);
 
   /**
    * @brief (0x32): Write PID parameters to ROM, which are retained after power
@@ -82,7 +83,7 @@ public:
    * @param pid_data: PID values to set
    * @return True on success, false on failure
    */
-  bool writePidToRom(const types::PidDataV161 &pid_data);
+  bool writePidToRom(const types::PidDataV161& pid_data);
 
   /**
    * @brief (0x34): Write the acceleration value to RAM, which is reset on power
@@ -90,7 +91,7 @@ public:
    * @param accel_data: Acceleration value to set
    * @return True on success, False on failure
    */
-  bool writeAccelerationToRam(const types::AccelDataV161 &accel_data);
+  bool writeAccelerationToRam(const types::AccelDataV161& accel_data);
 
   /**
    * @brief (0x91): Set the encoder zero offset value
@@ -99,7 +100,7 @@ public:
    * motor
    * @return True on success, False on failure
    */
-  bool writeEncoderOffset(uint16_t offset, uint16_t &written_offset_out);
+  bool writeEncoderOffset(uint16_t offset, uint16_t& written_offset_out);
 
   /**
    * @brief (0x19): Write the current motor position to zero in ROM (Caution:
@@ -107,7 +108,7 @@ public:
    * @param written_offset_out: [Output] Recorded zero offset value
    * @return True on success, False on failure
    */
-  bool writePositionAsZero(uint16_t &written_offset_out);
+  bool writePositionAsZero(uint16_t& written_offset_out);
 
   /**
    * @brief (0x9B): Reset motor error flags (possible after error condition is
@@ -115,7 +116,7 @@ public:
    * @param status_out [Output] Motor Status 1 Information after Error Clear
    * 2return True on success, False on failure
    */
-  bool clearErrorFlag(types::Status1DataV161 &status_out);
+  bool clearErrorFlag(types::Status1DataV161& status_out);
 
   // --- Motor State Control Method ---
   /**
@@ -144,7 +145,7 @@ public:
    * fails
    */
   bool setTorqueControl(int16_t torque_setpoint,
-                        types::Status2DataV161 &feedback_out);
+                        types::Status2DataV161& feedback_out);
 
   /**
    * @brief (0xA2): Start speed closed loop control.
@@ -154,7 +155,7 @@ public:
    * fails
    */
   bool setSpeedControl(int32_t speed_setpoint,
-                       types::Status2DataV161 &feedback_out);
+                       types::Status2DataV161& feedback_out);
 
   /**
    * @brief (0xA3): Start position closed loop control 1 (multi-turn)
@@ -164,7 +165,7 @@ public:
    * fails
    */
   bool setPositionControl1(int32_t angle_setpoint,
-                           types::Status2DataV161 &feedback_out);
+                           types::Status2DataV161& feedback_out);
 
   /**
    * @brief (0xA4): Start position closed loop control 2 (multi-turn, speed
@@ -175,8 +176,9 @@ public:
    * @return True if command succeeds and feedback is received, false if command
    * fails
    */
-  bool setPositionControl2(int32_t angle_setpoint, uint16_t max_speed,
-                           types::Status2DataV161 &feedback_out);
+  bool setPositionControl2(int32_t angle_setpoint,
+                           uint16_t max_speed,
+                           types::Status2DataV161& feedback_out);
 
   /**
    * @brief (0xA5): Start position closed loop control 3 (single rotation,
@@ -189,7 +191,7 @@ public:
    */
   bool setPositionControl3(uint16_t angle_setpoint,
                            types::SpinDirection direction,
-                           types::Status2DataV161 &feedback_out);
+                           types::Status2DataV161& feedback_out);
 
   /**
    * @brief (0xA6): Start position closed loop control 4 (single turn, heading,
@@ -202,10 +204,11 @@ public:
    * fails
    */
   bool setPositionControl4(uint16_t angle_setpoint,
-                           types::SpinDirection direction, uint16_t max_speed,
-                           types::Status2DataV161 &feedback_out);
+                           types::SpinDirection direction,
+                           uint16_t max_speed,
+                           types::Status2DataV161& feedback_out);
 
-private:
+ private:
   std::shared_ptr<CanInterface> can_interface_;
 
   uint8_t motor_id_;
@@ -220,12 +223,12 @@ private:
    * @param
    * @return
    */
-  bool sendCommandAndGetResponse(const std::array<uint8_t, 8> &command_data,
+  bool sendCommandAndGetResponse(const std::array<uint8_t, 8>& command_data,
                                  uint8_t expected_response_cmd_code,
-                                 std::array<uint8_t, 8> &response_data_out,
+                                 std::array<uint8_t, 8>& response_data_out,
                                  int retry_count = 0);
 };
 
-} // namespace v161_motor_control
+}  // namespace v161_motor_control
 
-#endif // V161_MOTOR_CONTROL__MOTOR_V161_HPP
+#endif  // V161_MOTOR_CONTROL__MOTOR_V161_HPP

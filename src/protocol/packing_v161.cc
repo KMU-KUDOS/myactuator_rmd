@@ -1,16 +1,18 @@
 #include "myactuator_rmd/protocol/packing_v161.h"
-#include "myactuator_rmd/protocol/protocol_v161.h" // Command code
+
+#include <stdexcept>  // for out_of_range
 
 #include <cstdint>
-#include <cstring>   // for memcpy
-#include <stdexcept> // for out_of_range
+#include <cstring>  // for memcpy
+
+#include "myactuator_rmd/protocol/protocol_v161.h"  // Command code
 
 namespace v161_motor_control::packing {
 
 // Template implementation for packing (needs to be visible, often put in header
 // or inline)
 template <typename T>
-void packLittleEndian(std::array<uint8_t, 8> &data, size_t index, T value) {
+void packLittleEndian(std::array<uint8_t, 8>& data, size_t index, T value) {
   if (index + sizeof(T) > data.size()) {
     throw std::out_of_range("Packing index out of range");
   }
@@ -23,22 +25,30 @@ void packLittleEndian(std::array<uint8_t, 8> &data, size_t index, T value) {
 
 // Explicit template instantiation (optional, helps with compile
 // times/organization)
-template void packLittleEndian<int8_t>(std::array<uint8_t, 8> &data,
-                                       size_t index, int8_t value);
-template void packLittleEndian<uint8_t>(std::array<uint8_t, 8> &data,
-                                        size_t index, uint8_t value);
-template void packLittleEndian<int16_t>(std::array<uint8_t, 8> &data,
-                                        size_t index, int16_t value);
-template void packLittleEndian<uint16_t>(std::array<uint8_t, 8> &data,
-                                         size_t index, uint16_t value);
-template void packLittleEndian<int32_t>(std::array<uint8_t, 8> &data,
-                                        size_t index, int32_t value);
-template void packLittleEndian<uint32_t>(std::array<uint8_t, 8> &data,
-                                         size_t index, uint32_t value);
-template void packLittleEndian<int64_t>(std::array<uint8_t, 8> &data,
-                                        size_t index, int64_t value);
-template void packLittleEndian<uint64_t>(std::array<uint8_t, 8> &data,
-                                         size_t index, uint64_t value);
+template void packLittleEndian<int8_t>(std::array<uint8_t, 8>& data,
+                                       size_t index,
+                                       int8_t value);
+template void packLittleEndian<uint8_t>(std::array<uint8_t, 8>& data,
+                                        size_t index,
+                                        uint8_t value);
+template void packLittleEndian<int16_t>(std::array<uint8_t, 8>& data,
+                                        size_t index,
+                                        int16_t value);
+template void packLittleEndian<uint16_t>(std::array<uint8_t, 8>& data,
+                                         size_t index,
+                                         uint16_t value);
+template void packLittleEndian<int32_t>(std::array<uint8_t, 8>& data,
+                                        size_t index,
+                                        int32_t value);
+template void packLittleEndian<uint32_t>(std::array<uint8_t, 8>& data,
+                                         size_t index,
+                                         uint32_t value);
+template void packLittleEndian<int64_t>(std::array<uint8_t, 8>& data,
+                                        size_t index,
+                                        int64_t value);
+template void packLittleEndian<uint64_t>(std::array<uint8_t, 8>& data,
+                                         size_t index,
+                                         uint64_t value);
 
 // --- Read Command Frame ---
 std::array<uint8_t, 8> createReadPidFrame() {
@@ -74,8 +84,8 @@ std::array<uint8_t, 8> createReadStatus3Frame() {
 }
 
 // --- Write/Action Command Frame ---
-std::array<uint8_t, 8>
-createWritePidRamFrame(const types::PidDataV161 &pid_data) {
+std::array<uint8_t, 8> createWritePidRamFrame(
+    const types::PidDataV161& pid_data) {
   std::array<uint8_t, 8> data = {
       protocol::CMD_WRITE_PID_RAM, 0, 0, 0, 0, 0, 0, 0};
 
@@ -89,8 +99,8 @@ createWritePidRamFrame(const types::PidDataV161 &pid_data) {
   return data;
 }
 
-std::array<uint8_t, 8>
-createWritePidRomFrame(const types::PidDataV161 &pid_data) {
+std::array<uint8_t, 8> createWritePidRomFrame(
+    const types::PidDataV161& pid_data) {
   std::array<uint8_t, 8> data = {
       protocol::CMD_WRITE_PID_ROM, 0, 0, 0, 0, 0, 0, 0};
 
@@ -104,8 +114,8 @@ createWritePidRomFrame(const types::PidDataV161 &pid_data) {
   return data;
 }
 
-std::array<uint8_t, 8>
-createWriteAccelRamFrame(const types::AccelDataV161 &accel_data) {
+std::array<uint8_t, 8> createWriteAccelRamFrame(
+    const types::AccelDataV161& accel_data) {
   std::array<uint8_t, 8> data = {
       protocol::CMD_WRITE_ACCEL_RAM, 0, 0, 0, 0, 0, 0, 0};
 
@@ -171,9 +181,9 @@ std::array<uint8_t, 8> createPositionControl1Frame(int32_t angle_setpoint) {
   return data;
 }
 
-std::array<uint8_t, 8>
-createPositionControl2Frame(int32_t angle_setpoint,
-                            uint16_t max_speed) { // Add max_speed parameter
+std::array<uint8_t, 8> createPositionControl2Frame(
+    int32_t angle_setpoint,
+    uint16_t max_speed) {  // Add max_speed parameter
   std::array<uint8_t, 8> data = {
       protocol::CMD_POSITION_CONTROL_2, 0, 0, 0, 0, 0, 0, 0};
   // speed limit (uint16_t) in bytes 2-3, position (int32_t) in bytes 4-7
@@ -184,9 +194,8 @@ createPositionControl2Frame(int32_t angle_setpoint,
   return data;
 }
 
-std::array<uint8_t, 8>
-createPositionControl3Frame(uint16_t angle_setpoint,
-                            types::SpinDirection direction) {
+std::array<uint8_t, 8> createPositionControl3Frame(
+    uint16_t angle_setpoint, types::SpinDirection direction) {
   std::array<uint8_t, 8> data = {
       protocol::CMD_POSITION_CONTROL_3, 0, 0, 0, 0, 0, 0, 0};
   // Spin Direction (uint8_t) in byte 1, position (uint16_t) in bytes 4-5
@@ -196,10 +205,10 @@ createPositionControl3Frame(uint16_t angle_setpoint,
   return data;
 }
 
-std::array<uint8_t, 8>
-createPositionControl4Frame(uint16_t angle_setpoint,
-                            types::SpinDirection direction,
-                            uint16_t max_speed) {
+std::array<uint8_t, 8> createPositionControl4Frame(
+    uint16_t angle_setpoint,
+    types::SpinDirection direction,
+    uint16_t max_speed) {
   std::array<uint8_t, 8> data = {
       protocol::CMD_POSITION_CONTROL_4, 0, 0, 0, 0, 0, 0, 0};
   // Spin Direction (uint8_t) in byte 1, speed limit (uint16_t) in bytes 2-3,
@@ -211,4 +220,4 @@ createPositionControl4Frame(uint16_t angle_setpoint,
   return data;
 }
 
-} // namespace v161_motor_control::packing
+}  // namespace v161_motor_control::packing

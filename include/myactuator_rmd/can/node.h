@@ -12,9 +12,10 @@
 
 #include <array>
 #include <chrono>
-#include <cstdint>
 #include <string>
 #include <vector>
+
+#include <cstdint>
 
 #include "myactuator_rmd/can/frame.h"
 
@@ -27,7 +28,7 @@ namespace can {
  * default 8*uint8 length in a blocking manner
  */
 class Node {
-public:
+ public:
   /**\fn Node
    * \brief
    *    Class constructor, initialises the socket that should be used for
@@ -42,16 +43,16 @@ public:
    * \param[in] is_signal_errors
    *    Boolean flags indicating whether error frames should be received or not
    */
-  Node(std::string const &ifname,
-       std::chrono::microseconds const &send_timeout = std::chrono::seconds(1),
-       std::chrono::microseconds const &receive_timeout =
+  Node(std::string const& ifname,
+       std::chrono::microseconds const& send_timeout = std::chrono::seconds(1),
+       std::chrono::microseconds const& receive_timeout =
            std::chrono::seconds(1),
        bool const is_signal_errors = true);
   Node() = delete;
-  Node(Node const &) = delete;
-  Node &operator=(Node const &) = default;
-  Node(Node &&) = default;
-  Node &operator=(Node &&) = default;
+  Node(Node const&) = delete;
+  Node& operator=(Node const&) = default;
+  Node(Node&&) = default;
+  Node& operator=(Node&&) = default;
   ~Node();
 
   /**\fn setLoopback
@@ -75,7 +76,7 @@ public:
    *    Invert the CAN id filter: If set to true all messages of the given ID
    * are discarded
    */
-  void setRecvFilter(std::vector<std::uint32_t> const &can_ids,
+  void setRecvFilter(std::vector<std::uint32_t> const& can_ids,
                      bool const is_invert = false);
 
   /**\fn setSendTimeout
@@ -85,7 +86,7 @@ public:
    * \param[in] timeout
    *    Timeout that the socket should be set to for sending frames
    */
-  void setSendTimeout(std::chrono::microseconds const &timeout);
+  void setSendTimeout(std::chrono::microseconds const& timeout);
 
   /**\fn setRecvTimeout
    * \brief
@@ -94,7 +95,7 @@ public:
    * \param[in] timeout
    *    Timeout that the socket should be set to for receiving frames
    */
-  void setRecvTimeout(std::chrono::microseconds const &timeout);
+  void setRecvTimeout(std::chrono::microseconds const& timeout);
 
   /**\fn setErrorFilters
    * \brief
@@ -114,8 +115,7 @@ public:
    * \return
    *    The read CAN frame
    */
-  [[nodiscard]]
-  Frame read() const;
+  [[nodiscard]] Frame read() const;
 
   /**\fn write
    * \brief
@@ -124,7 +124,7 @@ public:
    * \param[in] frame
    *    The CAN frame to be written
    */
-  void write(Frame const &frame);
+  void write(Frame const& frame);
 
   /**\fn write
    * \brief
@@ -137,9 +137,9 @@ public:
    *    The data to be sent
    */
   void write(std::uint32_t const can_id,
-             std::array<std::uint8_t, 8> const &data);
+             std::array<std::uint8_t, 8> const& data);
 
-protected:
+ protected:
   /**\fn initSocket
    * \brief
    *    Initialise a socket for the given network interface
@@ -147,7 +147,7 @@ protected:
    * \param[in] ifname
    *    The name of the network interface that should communicated over
    */
-  void initSocket(std::string const &ifname);
+  void initSocket(std::string const& ifname);
 
   /**\fn closeSocket
    * \brief
@@ -159,7 +159,7 @@ protected:
   int socket_;
 };
 
-} // namespace can
-} // namespace myactuator_rmd
+}  // namespace can
+}  // namespace myactuator_rmd
 
-#endif // MYACTUATOR_RMD__CAN__NODE
+#endif  // MYACTUATOR_RMD__CAN__NODE

@@ -49,6 +49,6 @@ inline uint32_t getV161ResponseId(uint8_t motor_id) {
 
 constexpr uint32_t MULTI_MOTOR_TORQUE_REQ_ID = 0x280;
 
-} // namespace v161_motor_control::protocol
+}  // namespace v161_motor_control::protocol
 
-#endif // V161_MOTOR_CONTROL__PROTOCOL_V161_HPP
+#endif  // V161_MOTOR_CONTROL__PROTOCOL_V161_HPP

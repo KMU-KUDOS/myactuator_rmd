@@ -1,15 +1,17 @@
 #include "myactuator_rmd/protocol/parsing_v161.h"
-#include "myactuator_rmd/protocol/protocol_v161.h" // Command code
+
+#include <stdexcept>  // for out_of_range
 
 #include <cstdint>
-#include <cstring>   // for memcpy
-#include <stdexcept> // for out_of_range
+#include <cstring>  // for memcpy
+
+#include "myactuator_rmd/protocol/protocol_v161.h"  // Command code
 
 namespace v161_motor_control::parsing {
 
 // --- Helper function implementation
 template <typename T>
-T unpackLittleEndian(const std::array<uint8_t, 8> &data, size_t index) {
+T unpackLittleEndian(const std::array<uint8_t, 8>& data, size_t index) {
   if (index + sizeof(T) > data.size()) {
     throw std::out_of_range(
         "Parsing index out of range. Index: " + std::to_string(index) +
@@ -22,25 +24,25 @@ T unpackLittleEndian(const std::array<uint8_t, 8> &data, size_t index) {
 }
 
 // Explicit template instantiation (optional)
-template int8_t unpackLittleEndian<int8_t>(const std::array<uint8_t, 8> &data,
+template int8_t unpackLittleEndian<int8_t>(const std::array<uint8_t, 8>& data,
                                            size_t index);
-template uint8_t unpackLittleEndian<uint8_t>(const std::array<uint8_t, 8> &data,
+template uint8_t unpackLittleEndian<uint8_t>(const std::array<uint8_t, 8>& data,
                                              size_t index);
-template int16_t unpackLittleEndian<int16_t>(const std::array<uint8_t, 8> &data,
+template int16_t unpackLittleEndian<int16_t>(const std::array<uint8_t, 8>& data,
                                              size_t index);
-template uint16_t
-unpackLittleEndian<uint16_t>(const std::array<uint8_t, 8> &data, size_t index);
-template int32_t unpackLittleEndian<int32_t>(const std::array<uint8_t, 8> &data,
+template uint16_t unpackLittleEndian<uint16_t>(
+    const std::array<uint8_t, 8>& data, size_t index);
+template int32_t unpackLittleEndian<int32_t>(const std::array<uint8_t, 8>& data,
                                              size_t index);
-template uint32_t
-unpackLittleEndian<uint32_t>(const std::array<uint8_t, 8> &data, size_t index);
-template int64_t unpackLittleEndian<int64_t>(const std::array<uint8_t, 8> &data,
+template uint32_t unpackLittleEndian<uint32_t>(
+    const std::array<uint8_t, 8>& data, size_t index);
+template int64_t unpackLittleEndian<int64_t>(const std::array<uint8_t, 8>& data,
                                              size_t index);
-template uint64_t
-unpackLittleEndian<uint64_t>(const std::array<uint8_t, 8> &data, size_t index);
+template uint64_t unpackLittleEndian<uint64_t>(
+    const std::array<uint8_t, 8>& data, size_t index);
 
 // --- Read Command Response Parsing Function Implementation ---
-types::PidDataV161 parseReadPidResponse(const std::array<uint8_t, 8> &data) {
+types::PidDataV161 parseReadPidResponse(const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_READ_PID) {
     throw std::runtime_error("Invalid command for PID response");
   }
@@ -56,8 +58,8 @@ types::PidDataV161 parseReadPidResponse(const std::array<uint8_t, 8> &data) {
   return result;
 }
 
-types::AccelDataV161
-parseReadAccelResponse(const std::array<uint8_t, 8> &data) {
+types::AccelDataV161 parseReadAccelResponse(
+    const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_READ_ACCEL) {
     throw std::runtime_error("Invalid command for Accel response");
   }
@@ -68,8 +70,8 @@ parseReadAccelResponse(const std::array<uint8_t, 8> &data) {
   return result;
 }
 
-types::EncoderDataV161
-parseReadEncoderResponse(const std::array<uint8_t, 8> &data) {
+types::EncoderDataV161 parseReadEncoderResponse(
+    const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_READ_ENCODER) {
     throw std::runtime_error("Invalid command code for Encoder response");
   }
@@ -82,8 +84,8 @@ parseReadEncoderResponse(const std::array<uint8_t, 8> &data) {
   return result;
 }
 
-types::MultiTurnAngleV161
-parseReadMultiTurnAngleResponse(const std::array<uint8_t, 8> &data) {
+types::MultiTurnAngleV161 parseReadMultiTurnAngleResponse(
+    const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_READ_MULTI_TURN_ANGLE) {
     throw std::runtime_error(
         "Invalid command code for MultiTurnAngle response");
@@ -91,11 +93,11 @@ parseReadMultiTurnAngleResponse(const std::array<uint8_t, 8> &data) {
   types::MultiTurnAngleV161 result;
 
   int64_t angle_raw = 0;
-  memcpy(reinterpret_cast<uint8_t *>(&angle_raw), &data[1], 7); // Copy 7 bytes
+  memcpy(reinterpret_cast<uint8_t*>(&angle_raw), &data[1], 7);  // Copy 7 bytes
   // Need sign extension if the highest bit (bit 7 of data[7]) is 1
   if (data[7] & 0x80) {
     // Maunally sign extend by setting the highest byte to 0xFF
-    reinterpret_cast<uint8_t *>(&angle_raw)[7] = 0xFF;
+    reinterpret_cast<uint8_t*>(&angle_raw)[7] = 0xFF;
   }
   result.angle = angle_raw;
   // Alternative (if it's actually int32_t in DATA[4-7]):
@@ -104,8 +106,8 @@ parseReadMultiTurnAngleResponse(const std::array<uint8_t, 8> &data) {
   return result;
 }
 
-types::SingleCircleAngleV161
-parseReadSingleCircleAngleResponse(const std::array<uint8_t, 8> &data) {
+types::SingleCircleAngleV161 parseReadSingleCircleAngleResponse(
+    const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_READ_SINGLE_CIRCLE_ANGLE) {
     throw std::runtime_error("Invalid command for SingleCircleAngle response");
   }
@@ -116,8 +118,8 @@ parseReadSingleCircleAngleResponse(const std::array<uint8_t, 8> &data) {
   return result;
 }
 
-types::Status1DataV161
-parseReadStatus1Response(const std::array<uint8_t, 8> &data) {
+types::Status1DataV161 parseReadStatus1Response(
+    const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_READ_STATUS_1) {
     throw std::runtime_error("Invalid command code for Status1 response");
   }
@@ -130,8 +132,8 @@ parseReadStatus1Response(const std::array<uint8_t, 8> &data) {
   return result;
 }
 
-types::Status2DataV161
-parseReadStatus2Response(const std::array<uint8_t, 8> &data) {
+types::Status2DataV161 parseReadStatus2Response(
+    const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_READ_STATUS_2) {
     throw std::runtime_error("Invalid command code for Status2 response");
   }
@@ -145,8 +147,8 @@ parseReadStatus2Response(const std::array<uint8_t, 8> &data) {
   return result;
 }
 
-types::Status3DataV161
-parseReadStatus3Response(const std::array<uint8_t, 8> &data) {
+types::Status3DataV161 parseReadStatus3Response(
+    const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_READ_STATUS_3) {
     throw std::runtime_error("Invalid command code for Status3 response");
   }
@@ -160,7 +162,7 @@ parseReadStatus3Response(const std::array<uint8_t, 8> &data) {
 }
 
 // --- Write Command Response Parsing Implementation ---
-uint16_t parseWriteEncoderOffsetResponse(const std::array<uint8_t, 8> &data) {
+uint16_t parseWriteEncoderOffsetResponse(const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_WRITE_ENCODER_OFFSET) {
     throw std::runtime_error(
         "Invalid command code for WriteEncoderOffset response");
@@ -168,7 +170,7 @@ uint16_t parseWriteEncoderOffsetResponse(const std::array<uint8_t, 8> &data) {
   return unpackLittleEndian<uint16_t>(data, 6);
 }
 
-uint16_t parseWritePosAsZeroRomResponse(const std::array<uint8_t, 8> &data) {
+uint16_t parseWritePosAsZeroRomResponse(const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_WRITE_POS_AS_ZERO_ROM) {
     throw std::runtime_error(
         "Invalid command code for WritePosAsZeroRom response");
@@ -176,26 +178,26 @@ uint16_t parseWritePosAsZeroRomResponse(const std::array<uint8_t, 8> &data) {
   return unpackLittleEndian<uint16_t>(data, 6);
 }
 
-types::Status1DataV161
-parseClearErrorFlagResponse(const std::array<uint8_t, 8> &data) {
+types::Status1DataV161 parseClearErrorFlagResponse(
+    const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_CLEAR_ERROR) {
     throw std::runtime_error(
         "Invalid command code for ClearErrorFlag response");
   }
-  
-  // 직접 Status1 데이터를 파싱합니다 (parseReadStatus1Response의 내부 구현과 동일)
+
+  // 직접 Status1 데이터를 파싱합니다 (parseReadStatus1Response의 내부 구현과
+  // 동일)
   types::Status1DataV161 result;
   result.temperature = unpackLittleEndian<int8_t>(data, 1);
   result.voltage = unpackLittleEndian<uint16_t>(data, 3);
   result.error_state_raw = data[7];
-  
+
   return result;
 }
 
 // --- Control Command Response Parsing Implementation ---
-types::Status2DataV161
-parseClosedLoopResponse(const std::array<uint8_t, 8> &data,
-                        uint8_t expected_cmd_code) {
+types::Status2DataV161 parseClosedLoopResponse(
+    const std::array<uint8_t, 8>& data, uint8_t expected_cmd_code) {
   // First, verify that the response command code matches the code you expect
   if (data[0] != expected_cmd_code) {
     throw std::runtime_error(
@@ -213,4 +215,4 @@ parseClosedLoopResponse(const std::array<uint8_t, 8> &data,
   return result;
 }
 
-} // namespace v161_motor_control::parsing
+}  // namespace v161_motor_control::parsing

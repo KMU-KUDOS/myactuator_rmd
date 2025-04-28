@@ -1,15 +1,18 @@
 #include "myactuator_rmd/can_interface.h"
-#include "myactuator_rmd/protocol/protocol_v161.h" // for getV161ResponseId
 
-#include <algorithm> // for std::find
-#include <cstdint>
+#include <algorithm>  // for std::find
 #include <iostream>
 #include <memory>
 #include <vector>
 
+#include <cstdint>
+
+#include "myactuator_rmd/protocol/protocol_v161.h"  // for getV161ResponseId
+
 namespace v161_motor_control {
 
-CanInterface::CanInterface(const std::string &ifname, long send_timeout_us,
+CanInterface::CanInterface(const std::string& ifname,
+                           long send_timeout_us,
                            long receive_timeout_us)
     : ifname_(ifname) {
   try {
@@ -17,22 +20,22 @@ CanInterface::CanInterface(const std::string &ifname, long send_timeout_us,
     can_node_->setSendTimeout(std::chrono::microseconds(send_timeout_us));
     can_node_->setRecvTimeout(std::chrono::microseconds(receive_timeout_us));
 
-    can_node_->setErrorFilters(true); // Set to also receive error frames by
-                                      // default (change to false if needed)
+    can_node_->setErrorFilters(true);  // Set to also receive error frames by
+                                       // default (change to false if needed)
 
     can_node_->setLoopback(
-        false); // Disable loopback (don't receive messages from yourself)
+        false);  // Disable loopback (don't receive messages from yourself)
 
     std::cout << "Can interface '" << ifname << "' initialized successfully"
               << '\n';
-  } catch (const myactuator_rmd::can::SocketException &e) {
+  } catch (const myactuator_rmd::can::SocketException& e) {
     std::cerr << "Failed to initialized CAN interface '" << ifname
               << "': " << e.what() << " (Error Code: " << e.code() << ")"
               << '\n';
 
-    can_node_ = nullptr; // Pointer nulling on initialization failure
+    can_node_ = nullptr;  // Pointer nulling on initialization failure
 
-    throw; // Throw an exception again to signal a failed creation
+    throw;  // Throw an exception again to signal a failed creation
   }
 }
 
@@ -55,7 +58,8 @@ bool CanInterface::addMotorId(uint8_t motor_id) {
   }
 
   // Check motor_id
-  if (std::find(registered_motor_ids_.begin(), registered_motor_ids_.end(),
+  if (std::find(registered_motor_ids_.begin(),
+                registered_motor_ids_.end(),
                 motor_id) == registered_motor_ids_.end()) {
     registered_motor_ids_.push_back(motor_id);
     updateReceiveFilters();
@@ -95,7 +99,7 @@ void CanInterface::updateReceiveFilters() {
       }
 
       std::cout << '\n';
-    } catch (const myactuator_rmd::can::SocketException &e) {
+    } catch (const myactuator_rmd::can::SocketException& e) {
       std::cerr << "Failed to set CAN receive filters: " << e.what() << '\n';
     }
   } else {
@@ -103,14 +107,14 @@ void CanInterface::updateReceiveFilters() {
 
     try {
       can_node_->setRecvFilter({});
-    } catch (const myactuator_rmd::can::SocketException &e) {
+    } catch (const myactuator_rmd::can::SocketException& e) {
       std::cerr << "Failed to clear CAN receive filters: " << e.what() << '\n';
     }
   }
 }
 
 bool CanInterface::sendFrame(uint32_t can_id,
-                             const std::array<uint8_t, 8> &data) {
+                             const std::array<uint8_t, 8>& data) {
   if (!can_node_) {
     std::cerr << "CAN node is not initialized. Cannot send frame" << '\n';
     return false;
@@ -131,14 +135,14 @@ bool CanInterface::sendFrame(uint32_t can_id,
 
     can_node_->write(can_id, data);
     return true;
-  } catch (const myactuator_rmd::can::SocketException &e) {
+  } catch (const myactuator_rmd::can::SocketException& e) {
     std::cerr << "Failed to send CAN frame (ID: 0x" << std::hex << can_id
               << std::dec << "): " << e.what() << '\n';
-  } catch (const myactuator_rmd::can::Exception
-               &e) { // Other CAN-specific exceptions (TxTimeout, etc.)
+  } catch (const myactuator_rmd::can::Exception&
+               e) {  // Other CAN-specific exceptions (TxTimeout, etc.)
     std::cerr << "CAN Error during send (ID: 0x" << std::hex << can_id
               << std::dec << "): " << e.what() << '\n';
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     std::cerr << "Unknown error during send (ID: 0x" << std::hex << can_id
               << std::dec << "): " << e.what() << '\n';
   }
@@ -146,7 +150,7 @@ bool CanInterface::sendFrame(uint32_t can_id,
 }
 
 bool CanInterface::receiveFrame(uint32_t expected_can_id,
-                                std::array<uint8_t, 8> &data_out) {
+                                std::array<uint8_t, 8>& data_out) {
   if (!can_node_) {
     std::cerr << "CAN node is not initialized. Cannot receive frame" << '\n';
     return false;
@@ -179,7 +183,7 @@ bool CanInterface::receiveFrame(uint32_t expected_can_id,
       // wants to retry
       return false;
     }
-  } catch (const myactuator_rmd::can::SocketException &e) {
+  } catch (const myactuator_rmd::can::SocketException& e) {
     // EAGAIN or EWOULDBLOCK means timeout
     if (e.code().value() == EAGAIN || e.code().value() == EWOULDBLOCK) {
       // std::cout << "CAN receive timeout (Expected ID: 0x" << std::hex <<
@@ -188,14 +192,14 @@ bool CanInterface::receiveFrame(uint32_t expected_can_id,
       std::cerr << "Failed to receive CAN frame (Expected ID: 0x" << std::hex
                 << expected_can_id << std::dec << "): " << e.what() << '\n';
     }
-  } catch (const myactuator_rmd::can::Exception &e) {
+  } catch (const myactuator_rmd::can::Exception& e) {
     std::cerr << "CAN error during receive (Expected ID: 0x" << std::hex
               << expected_can_id << std::dec << "): " << e.what() << '\n';
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     std::cerr << "Unknown error during receive (Expected ID: 0x" << std::hex
               << expected_can_id << std::dec << "): " << e.what() << '\n';
   }
   return false;
 }
 
-} // namespace v161_motor_control
+}  // namespace v161_motor_control
