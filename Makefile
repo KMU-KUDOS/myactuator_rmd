@@ -1,4 +1,4 @@
-# Makefile for v161_motor_control project
+# Makefile for myactuator_rmd project
 
 # Setting the default directory
 BUILD_DIR = build
@@ -34,11 +34,11 @@ clean:
 # Rebuild (clean + all)
 rebuild: clean all
 
-# Run main_app (after build)
+# Run v161_example (after build)
 run: all
-	@echo "main_app execution in progress..."
-	@./$(BUILD_DIR)/main_app
-	@echo "main_app execution completed!"
+	@echo "v161_example execution in progress..."
+	@./$(BUILD_DIR)/v161_example
+	@echo "v161_example execution completed!"
 
 # Help target
 help:
