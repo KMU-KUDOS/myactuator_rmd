@@ -13,10 +13,17 @@
 namespace v161_motor_control {
 
 MotorV161::MotorV161(std::shared_ptr<CanInterface> can_interface,
+                     std::shared_ptr<MotorRegistry> motor_registry,
                      uint8_t motor_id)
-    : can_interface_(can_interface), motor_id_(motor_id) {
+    : can_interface_(can_interface), 
+      motor_registry_(motor_registry),
+      motor_id_(motor_id) {
   if (!can_interface_) {
     throw std::invalid_argument("CAN interface pointer is null");
+  }
+  
+  if (!motor_registry_) {
+    throw std::invalid_argument("Motor registry pointer is null");
   }
 
   if (motor_id_ < 1 || motor_id_ > 32) {
@@ -27,8 +34,15 @@ MotorV161::MotorV161(std::shared_ptr<CanInterface> can_interface,
   request_id_ = protocol::getV161RequestId(motor_id_);
   response_id_ = protocol::getV161ResponseId(motor_id_);
 
-  // Request to register the motor ID with the interface (for filter settings)
-  can_interface_->addMotorId(motor_id_);
+  // Register the motor ID with the registry
+  if (motor_registry_->addMotorId(motor_id_)) {
+    // Update the filters on the CAN interface
+    auto filter_ids = motor_registry_->getFilterIds();
+    can_interface_->setReceiveFilters(filter_ids);
+  } else {
+    std::cerr << "Failed to register motor ID " << static_cast<int>(motor_id_) 
+              << " with the motor registry" << '\n';
+  }
 }
 
 bool MotorV161::sendCommandAndGetResponse(
