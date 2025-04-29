@@ -3,6 +3,8 @@
 #include <algorithm>  // for std::find
 #include <iostream>
 
+#include "myactuator_rmd/protocol/protocol_v161.h"  // for getV161ResponseId
+
 namespace v161_motor_control {
 
 MotorRegistry::MotorRegistry() {
@@ -36,9 +38,17 @@ std::vector<uint8_t> MotorRegistry::getRegisteredMotorIds() const {
 }
 
 std::vector<uint32_t> MotorRegistry::getFilterIds() const {
-  // Placeholder implementation
-  // Will be properly implemented in Task 3
   std::vector<uint32_t> filter_ids;
+  
+  // Populate filter IDs for all registered motor IDs
+  for (uint8_t id : registered_motor_ids_) {
+    uint32_t response_id = protocol::getV161ResponseId(id);
+    
+    if (response_id != 0) {
+      filter_ids.push_back(response_id);
+    }
+  }
+  
   return filter_ids;
 }
 
