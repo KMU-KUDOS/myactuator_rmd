@@ -29,8 +29,8 @@ class CanInterface {
   ~CanInterface();
 
   /**
-   * @brief : Add the motor IDs to communicate with and set the receive filter
-   * Listen to the response ID (0x140 + ID) of the V1.61 protocol
+   * @brief : Temporary method for backward compatibility
+   * @deprecated This method is deprecated. Use MotorRegistry instead.
    * @param motor_id : Motor ID to add (1 to 32)
    */
   bool addMotorId(uint8_t motor_id);
@@ -51,6 +51,13 @@ class CanInterface {
    */
   bool receiveFrame(uint32_t expected_can_id, std::array<uint8_t, 8>& data_out);
 
+  /**
+   * @brief : Set the CAN receive filters to listen for specific IDs
+   * @param ids : Vector of CAN IDs to filter for
+   * @return : true on success, false on failure
+   */
+  bool setReceiveFilters(const std::vector<uint32_t>& ids);
+
   // Disable copy and move constructor/assignment operators (because of
   // unique_ptr member)
   CanInterface(const CanInterface&) = delete;
@@ -60,13 +67,7 @@ class CanInterface {
 
  private:
   std::unique_ptr<myactuator_rmd::can::Node> can_node_;
-  std::vector<uint8_t> registered_motor_ids_;
   std::string ifname_;
-
-  /**
-   * @brief : Update the incoming filter for the currently registered motor IDs
-   */
-  void updateReceiveFilters();
 };
 
 }  // namespace v161_motor_control

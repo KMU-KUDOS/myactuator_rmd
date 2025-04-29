@@ -7,8 +7,6 @@
 
 #include <cstdint>
 
-#include "myactuator_rmd/protocol/protocol_v161.h"  // for getV161ResponseId
-
 namespace v161_motor_control {
 
 CanInterface::CanInterface(const std::string& ifname,
@@ -46,71 +44,11 @@ CanInterface::~CanInterface() {
 }
 
 bool CanInterface::addMotorId(uint8_t motor_id) {
-  if (!can_node_) {
-    std::cerr << "CAN node is not initialized" << '\n';
-    return false;
-  }
-
-  if (motor_id < 1 || motor_id > 32) {
-    std::cerr << "Invalid motor ID: " << static_cast<int>(motor_id)
-              << ". Must be between 1 & 32" << '\n';
-    return false;
-  }
-
-  // Check motor_id
-  if (std::find(registered_motor_ids_.begin(),
-                registered_motor_ids_.end(),
-                motor_id) == registered_motor_ids_.end()) {
-    registered_motor_ids_.push_back(motor_id);
-    updateReceiveFilters();
-
-    std::cout << "Motor ID " << static_cast<int>(motor_id)
-              << " registered. Updating CAN filters" << '\n';
-    return true;
-  } else {
-    std::cout << "Motor ID " << static_cast<int>(motor_id)
-              << " is already registered" << '\n';
-    return true;
-  }
-}
-
-void CanInterface::updateReceiveFilters() {
-  if (!can_node_ || registered_motor_ids_.empty()) {
-    return;
-  }
-
-  std::vector<uint32_t> receive_ids;
-
-  for (uint8_t id : registered_motor_ids_) {
-    uint32_t response_id = protocol::getV161ResponseId(id);
-
-    if (response_id != 0) {
-      receive_ids.push_back(response_id);
-    }
-  }
-
-  if (!receive_ids.empty()) {
-    try {
-      can_node_->setRecvFilter(receive_ids);
-      std::cout << "CAN receive filters updated for IDs:";
-
-      for (uint32_t id : receive_ids) {
-        std::cout << " 0x" << std::hex << id << std::dec;
-      }
-
-      std::cout << '\n';
-    } catch (const myactuator_rmd::can::SocketException& e) {
-      std::cerr << "Failed to set CAN receive filters: " << e.what() << '\n';
-    }
-  } else {
-    std::cout << "No valid motor IDs registered, clearing CAN filters" << '\n';
-
-    try {
-      can_node_->setRecvFilter({});
-    } catch (const myactuator_rmd::can::SocketException& e) {
-      std::cerr << "Failed to clear CAN receive filters: " << e.what() << '\n';
-    }
-  }
+  std::cerr << "WARNING: CanInterface::addMotorId is deprecated. "
+            << "Use MotorRegistry instead. "
+            << "Motor ID " << static_cast<int>(motor_id) << " was ignored."
+            << '\n';
+  return true; // Return success to avoid breaking calling code
 }
 
 bool CanInterface::sendFrame(uint32_t can_id,
@@ -200,6 +138,32 @@ bool CanInterface::receiveFrame(uint32_t expected_can_id,
               << expected_can_id << std::dec << "): " << e.what() << '\n';
   }
   return false;
+}
+
+bool CanInterface::setReceiveFilters(const std::vector<uint32_t>& ids) {
+  if (!can_node_) {
+    std::cerr << "CAN node is not initialized. Cannot set receive filters" << '\n';
+    return false;
+  }
+
+  try {
+    can_node_->setRecvFilter(ids);
+    
+    if (!ids.empty()) {
+      std::cout << "CAN receive filters updated for IDs:";
+      for (uint32_t id : ids) {
+        std::cout << " 0x" << std::hex << id << std::dec;
+      }
+      std::cout << '\n';
+    } else {
+      std::cout << "Clearing CAN filters" << '\n';
+    }
+    
+    return true;
+  } catch (const myactuator_rmd::can::SocketException& e) {
+    std::cerr << "Failed to set CAN receive filters: " << e.what() << '\n';
+    return false;
+  }
 }
 
 }  // namespace v161_motor_control
