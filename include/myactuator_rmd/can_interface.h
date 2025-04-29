@@ -29,13 +29,6 @@ class CanInterface {
   ~CanInterface();
 
   /**
-   * @brief : Temporary method for backward compatibility
-   * @deprecated This method is deprecated. Use MotorRegistry instead.
-   * @param motor_id : Motor ID to add (1 to 32)
-   */
-  bool addMotorId(uint8_t motor_id);
-
-  /**
    * @brief : Send a CAN frame
    * @param can_id : Target CAN ID
    * @param data : 8 bytes of data to send

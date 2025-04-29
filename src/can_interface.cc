@@ -43,14 +43,6 @@ CanInterface::~CanInterface() {
   std::cout << "Closing CAN interface '" << ifname_ << "'." << '\n';
 }
 
-bool CanInterface::addMotorId(uint8_t motor_id) {
-  std::cerr << "WARNING: CanInterface::addMotorId is deprecated. "
-            << "Use MotorRegistry instead. "
-            << "Motor ID " << static_cast<int>(motor_id) << " was ignored."
-            << '\n';
-  return true; // Return success to avoid breaking calling code
-}
-
 bool CanInterface::sendFrame(uint32_t can_id,
                              const std::array<uint8_t, 8>& data) {
   if (!can_node_) {
