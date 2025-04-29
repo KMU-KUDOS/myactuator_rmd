@@ -6,6 +6,7 @@
 #include <cstdint>
 
 #include "myactuator_rmd/can_interface.h"
+#include "myactuator_rmd/motor_registry.h"
 #include "myactuator_rmd/protocol/types_v161.h"
 
 namespace v161_motor_control {
@@ -15,9 +16,12 @@ class MotorV161 {
   /**
    * @brief : Constructor
    * @param can_interface : Shared CAN Interface Objects
+   * @param motor_registry : Shared Motor Registry for ID management
    * @param motor_id : Motor ID to control (1-32)
    */
-  MotorV161(std::shared_ptr<CanInterface> can_interface, uint8_t motor_id);
+  MotorV161(std::shared_ptr<CanInterface> can_interface, 
+            std::shared_ptr<MotorRegistry> motor_registry,
+            uint8_t motor_id);
 
   // --- Read Method
   /**
@@ -210,6 +214,7 @@ class MotorV161 {
 
  private:
   std::shared_ptr<CanInterface> can_interface_;
+  std::shared_ptr<MotorRegistry> motor_registry_;
 
   uint8_t motor_id_;
   uint32_t request_id_;
