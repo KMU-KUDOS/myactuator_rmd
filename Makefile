@@ -16,7 +16,7 @@ all: config
 # CMake configuration
 config: $(BUILD_DIR)
 	@echo "CMake configuration in progress..."
-	@cd $(BUILD_DIR) && $(CMAKE) ..
+	@cd $(BUILD_DIR) && $(CMAKE) .. -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 	@echo "CMake configuration completed!"
 
 # Build directory creation
