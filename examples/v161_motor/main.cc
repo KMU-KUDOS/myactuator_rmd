@@ -8,6 +8,7 @@
 #include <cstdio>
 
 #include "myactuator_rmd/can_interface.h"
+#include "myactuator_rmd/motor_registry.h"
 #include "myactuator_rmd/protocol/motor_v161.h"
 
 // Helper function to print Status 1 data
@@ -50,7 +51,13 @@ int main() {
     // Create a CAN interface (managed by shared_ptr)
     auto can_interface =
         std::make_shared<v161_motor_control::CanInterface>(can_interface_name);
-    v161_motor_control::MotorV161 motor(can_interface, motor_id_to_test);
+    
+    // Create a Motor Registry (managed by shared_ptr)
+    auto motor_registry = 
+        std::make_shared<v161_motor_control::MotorRegistry>();
+    
+    // Create Motor with both CAN Interface and Motor Registry
+    v161_motor_control::MotorV161 motor(can_interface, motor_registry, motor_id_to_test);
 
     std::cout << "Successfully initialized motor control for ID "
               << static_cast<int>(motor_id_to_test) << '\n'
