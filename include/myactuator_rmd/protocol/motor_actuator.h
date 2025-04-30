@@ -3,13 +3,13 @@
 
 #include <memory>  // for std::shared_ptr
 #include <cstdint>
+#include <array>
 
 #include "myactuator_rmd/can_interface.h"
 #include "myactuator_rmd/protocol/types_v161.h"
+#include "myactuator_rmd/protocol/protocol_v161.h"
 
 namespace v161_motor_control {
-
-class MotorV161;  // Forward declaration
 
 // 타입 정의가 없는 경우 여기서 정의
 namespace types {
@@ -44,10 +44,10 @@ class MotorActuator {
  public:
   /**
    * @brief 생성자
-   * @param motor_v161 MotorV161 클래스에 대한 참조 (통신 헬퍼 메서드 접근용)
+   * @param can_interface CAN 인터페이스 객체
    * @param motor_id 대상 모터 ID (1-32)
    */
-  MotorActuator(MotorV161* motor_v161, uint8_t motor_id);
+  MotorActuator(std::shared_ptr<CanInterface> can_interface, uint8_t motor_id);
   
   /**
    * @brief 소멸자
@@ -125,8 +125,23 @@ class MotorActuator {
                           types::PositionResponseV161& position_data_out);
   
  private:
-  MotorV161* motor_v161_;
+  std::shared_ptr<CanInterface> can_interface_;
   uint8_t motor_id_;
+  uint32_t request_id_;
+  uint32_t response_id_;
+
+  /**
+   * @brief 명령을 전송하고 응답을 받는 헬퍼 메서드
+   * @param command_data 전송할 명령 데이터
+   * @param expected_response_cmd_code 예상되는 응답 명령 코드
+   * @param response_data_out [출력] 받은 응답 데이터
+   * @param retry_count 재시도 횟수
+   * @return 성공 시 true, 실패 시 false
+   */
+  bool sendCommandAndGetResponse(const std::array<uint8_t, 8>& command_data,
+                                uint8_t expected_response_cmd_code,
+                                std::array<uint8_t, 8>& response_data_out,
+                                int retry_count = 0);
 };
 
 }  // namespace v161_motor_control
