@@ -8,6 +8,7 @@
 #include "myactuator_rmd/can_interface.h"
 #include "myactuator_rmd/motor_registry.h"
 #include "myactuator_rmd/protocol/types_v161.h"
+#include "myactuator_rmd/protocol/motor_configurator.h"
 
 namespace v161_motor_control {
 
@@ -73,47 +74,6 @@ class MotorV161 {
   types::Status3DataV161 readStatus3();
 
   // --- Write/Action Method ---
-  /**
-   * @brief (0x31): Write the PID parameters to RAM, which will be initialized
-   * on power off
-   * @param pid_data: PID values to set
-   * @return true on success, false on failure
-   */
-  bool writePidToRam(const types::PidDataV161& pid_data);
-
-  /**
-   * @brief (0x32): Write PID parameters to ROM, which are retained after power
-   * off (Note: Chip lifetime impact)
-   * @param pid_data: PID values to set
-   * @return True on success, false on failure
-   */
-  bool writePidToRom(const types::PidDataV161& pid_data);
-
-  /**
-   * @brief (0x34): Write the acceleration value to RAM, which is reset on power
-   * off
-   * @param accel_data: Acceleration value to set
-   * @return True on success, False on failure
-   */
-  bool writeAccelerationToRam(const types::AccelDataV161& accel_data);
-
-  /**
-   * @brief (0x91): Set the encoder zero offset value
-   * @param offset: Offset value to set (0 ~ 16383)
-   * @param written_offset_out: [Output] Offset value written to the actual
-   * motor
-   * @return True on success, False on failure
-   */
-  bool writeEncoderOffset(uint16_t offset, uint16_t& written_offset_out);
-
-  /**
-   * @brief (0x19): Write the current motor position to zero in ROM (Caution:
-   * Chip lifetime impact, reboot required)
-   * @param written_offset_out: [Output] Recorded zero offset value
-   * @return True on success, False on failure
-   */
-  bool writePositionAsZero(uint16_t& written_offset_out);
-
   /**
    * @brief (0x9B): Reset motor error flags (possible after error condition is
    * cleared)
@@ -212,9 +172,16 @@ class MotorV161 {
                            uint16_t max_speed,
                            types::Status2DataV161& feedback_out);
 
+  /**
+   * @brief 모터 구성 작업을 위한 MotorConfigurator 인스턴스 얻기
+   * @return MotorConfigurator 인스턴스에 대한 참조
+   */
+  MotorConfigurator& getConfigurator() { return *configurator_; }
+
  private:
   std::shared_ptr<CanInterface> can_interface_;
   std::shared_ptr<MotorRegistry> motor_registry_;
+  std::shared_ptr<MotorConfigurator> configurator_;
 
   uint8_t motor_id_;
   uint32_t request_id_;
