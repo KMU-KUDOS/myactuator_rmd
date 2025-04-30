@@ -43,6 +43,9 @@ MotorV161::MotorV161(std::shared_ptr<CanInterface> can_interface,
     std::cerr << "Failed to register motor ID " << static_cast<int>(motor_id_) 
               << " with the motor registry" << '\n';
   }
+  
+  // MotorConfigurator 인스턴스 생성
+  configurator_ = std::make_shared<MotorConfigurator>(can_interface_, motor_id_);
 }
 
 bool MotorV161::sendCommandAndGetResponse(
@@ -243,87 +246,8 @@ types::Status3DataV161 MotorV161::readStatus3() {
   return {};
 }
 
-// --- Wriet/Action Method Implementation ---
-bool MotorV161::writePidToRam(const types::PidDataV161& pid_data) {
-  auto command_data = packing::createWritePidRamFrame(pid_data);
-  std::array<uint8_t, 8> response_data;
-
-  // The response of a write command is the same data as the request (Echo)
-  if (sendCommandAndGetResponse(
-          command_data, protocol::CMD_WRITE_PID_RAM, response_data, 1)) {
-    return response_data == command_data;
-  }
-  return false;
-}
-
-bool MotorV161::writePidToRom(const types::PidDataV161& pid_data) {
-  std::cout << "Warning: Writing PID to ROM (0x32). Frequent writes may affect "
-               "chip life"
-            << '\n';
-  auto command_data = packing::createWritePidRomFrame(pid_data);
-  std::array<uint8_t, 8> response_data;
-
-  if (sendCommandAndGetResponse(
-          command_data, protocol::CMD_WRITE_PID_ROM, response_data, 1)) {
-    return response_data == command_data;
-  }
-  return false;
-}
-
-bool MotorV161::writeAccelerationToRam(const types::AccelDataV161& accel_data) {
-  auto command_data = packing::createWriteAccelRamFrame(accel_data);
-  std::array<uint8_t, 8> response_data;
-
-  if (sendCommandAndGetResponse(
-          command_data, protocol::CMD_WRITE_ACCEL_RAM, response_data, 1)) {
-    return response_data == command_data;
-  }
-  return false;
-}
-
-bool MotorV161::writeEncoderOffset(uint16_t offset,
-                                   uint16_t& written_offset_out) {
-  auto command_data = packing::createWriteEncoderOffsetFrame(offset);
-  std::array<uint8_t, 8> response_data;
-
-  if (sendCommandAndGetResponse(
-          command_data, protocol::CMD_WRITE_ENCODER_OFFSET, response_data, 1)) {
-    try {
-      written_offset_out =
-          parsing::parseWriteEncoderOffsetResponse(response_data);
-      return true;
-    } catch (const std::exception& e) {
-      std::cerr << "Motor " << static_cast<int>(motor_id_)
-                << " Error parsing WriteEncoderOffset response: " << e.what()
-                << '\n';
-    }
-  }
-  return false;
-}
-
-bool MotorV161::writePositionAsZero(uint16_t& written_offset_out) {
-  std::cout << "Warning: Writing current position as zero to ROM (0x19). "
-               "Requires restart. Frequent writes may effect chip life"
-            << '\n';
-  auto command_data = packing::createWritePosAsZeroRomFrame();
-  std::array<uint8_t, 8> response_data;
-
-  if (sendCommandAndGetResponse(command_data,
-                                protocol::CMD_WRITE_POS_AS_ZERO_ROM,
-                                response_data,
-                                1)) {
-    try {
-      written_offset_out =
-          parsing::parseWritePosAsZeroRomResponse(response_data);
-      return true;
-    } catch (const std::exception& e) {
-      std::cerr << "Motor " << static_cast<int>(motor_id_)
-                << " Error parsing WritePosAsZero response: " << e.what()
-                << '\n';
-    }
-  }
-  return false;
-}
+// --- Write/Action Method Implementation ---
+// 설정 관련 메서드는 MotorConfigurator로 이동됨
 
 bool MotorV161::clearErrorFlag(types::Status1DataV161& status_out) {
   auto command_data = packing::createClearErrorFlagFrame();
