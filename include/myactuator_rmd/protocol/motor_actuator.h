@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <array>
 
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "myactuator_rmd/can_interface.h"
 #include "myactuator_rmd/protocol/types_v161.h"
 #include "myactuator_rmd/protocol/protocol_v161.h"
@@ -56,73 +58,68 @@ class MotorActuator {
   
   /**
    * @brief (0x88): 모터의 정지 명령 실행
-   * @return 성공 시 true, 실패 시 false
+   * @return 성공 시 OkStatus, 실패 시 에러 Status
    */
-  bool stopMotor();
+  absl::Status stopMotor();
   
   /**
    * @brief (0x80): 모터 제어 시작 명령 실행
-   * @return 성공 시 true, 실패 시 false
+   * @return 성공 시 OkStatus, 실패 시 에러 Status
    */
-  bool runMotor();
+  absl::Status runMotor();
   
   /**
    * @brief (0x81): 모터 전원 끄기 명령 실행
-   * @return 성공 시 true, 실패 시 false
+   * @return 성공 시 OkStatus, 실패 시 에러 Status
    */
-  bool powerOffMotor();
+  absl::Status powerOffMotor();
   
   /**
    * @brief (0x76): 모터 오류 플래그 초기화
-   * @return 성공 시 true, 실패 시 false
+   * @return 성공 시 Status1DataV161 데이터, 실패 시 에러 Status
    */
-  bool resetMotorError();
+  absl::StatusOr<types::Status1DataV161> resetMotorError();
   
   /**
    * @brief (0xA1): 토크 제어 모드
    * @param iqControl 토크 제어 값 (-2000 ~ 2000)
-   * @param torque_data_out [출력] 토크 응답 데이터
-   * @return 성공 시 true, 실패 시 false
+   * @return 성공 시 TorqueResponseV161 데이터, 실패 시 에러 Status
    */
-  bool setTorque(int16_t iqControl, types::TorqueResponseV161& torque_data_out);
+  absl::StatusOr<types::TorqueResponseV161> setTorque(int16_t iqControl);
   
   /**
    * @brief (0xA2): 속도 제어 모드
    * @param speed 목표 속도(rpm 단위, -1000 ~ 1000)
-   * @param speed_data_out [출력] 속도 응답 데이터
-   * @return 성공 시 true, 실패 시 false
+   * @return 성공 시 SpeedResponseV161 데이터, 실패 시 에러 Status
    */
-  bool setSpeed(int32_t speed, types::SpeedResponseV161& speed_data_out);
+  absl::StatusOr<types::SpeedResponseV161> setSpeed(int32_t speed);
   
   /**
    * @brief (0xA3): 절대 위치 제어 모드 (위치<0,360>)
    * @param angle 목표 각도(0.01도 단위, 0 ~ 36000)
    * @param max_speed 최대 속도(0.01rpm 단위, >=0)
-   * @param position_data_out [출력] 위치 응답 데이터
-   * @return 성공 시 true, 실패 시 false
+   * @return 성공 시 PositionResponseV161 데이터, 실패 시 에러 Status
    */
-  bool setAbsolutePosition(uint16_t angle, uint16_t max_speed, 
-                          types::PositionResponseV161& position_data_out);
+  absl::StatusOr<types::PositionResponseV161> setAbsolutePosition(
+      uint16_t angle, uint16_t max_speed);
   
   /**
    * @brief (0xA4): 다중턴 위치 제어 모드
    * @param position 목표 위치(0.01도 단위, 제한 없음)
    * @param max_speed 최대 속도(0.01rpm 단위, >=0)
-   * @param position_data_out [출력] 위치 응답 데이터
-   * @return 성공 시 true, 실패 시 false
+   * @return 성공 시 PositionResponseV161 데이터, 실패 시 에러 Status
    */
-  bool setPositionAbsolute(int32_t position, uint16_t max_speed,
-                          types::PositionResponseV161& position_data_out);
+  absl::StatusOr<types::PositionResponseV161> setPositionAbsolute(
+      int32_t position, uint16_t max_speed);
   
   /**
    * @brief (0xA5): 증분 위치 제어 모드
    * @param position_increment 목표 위치 증분값(0.01도 단위)
    * @param max_speed 최대 속도(0.01rpm 단위, >=0)
-   * @param position_data_out [출력] 위치 응답 데이터
-   * @return 성공 시 true, 실패 시 false
+   * @return 성공 시 PositionResponseV161 데이터, 실패 시 에러 Status
    */
-  bool setPositionRelative(int32_t position_increment, uint16_t max_speed,
-                          types::PositionResponseV161& position_data_out);
+  absl::StatusOr<types::PositionResponseV161> setPositionRelative(
+      int32_t position_increment, uint16_t max_speed);
   
  private:
   std::shared_ptr<CanInterface> can_interface_;
@@ -136,9 +133,9 @@ class MotorActuator {
    * @param expected_response_cmd_code 예상되는 응답 명령 코드
    * @param response_data_out [출력] 받은 응답 데이터
    * @param retry_count 재시도 횟수
-   * @return 성공 시 true, 실패 시 false
+   * @return 성공 시 OkStatus, 실패 시 에러 Status
    */
-  bool sendCommandAndGetResponse(const std::array<uint8_t, 8>& command_data,
+  absl::Status sendCommandAndGetResponse(const std::array<uint8_t, 8>& command_data,
                                 uint8_t expected_response_cmd_code,
                                 std::array<uint8_t, 8>& response_data_out,
                                 int retry_count = 0);
