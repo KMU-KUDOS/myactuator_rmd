@@ -8,6 +8,9 @@
 #include <iostream>
 #include <thread>
 
+#include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
+
 namespace v161_motor_control {
 
 MotorActuator::MotorActuator(std::shared_ptr<CanInterface> can_interface, uint8_t motor_id)
@@ -38,10 +41,12 @@ bool MotorActuator::sendCommandAndGetResponse(
     return false;
 
   for (int i = 0; i <= retry_count; ++i) {
-    if (!can_interface_->sendFrame(request_id_, command_data)) {
+    auto send_status = can_interface_->sendFrame(request_id_, command_data);
+    if (!send_status.ok()) {
       std::cerr << "Motor " << static_cast<int>(motor_id_)
                 << ": Failed to send command 0x" << std::hex
-                << static_cast<int>(command_data[0]) << std::dec << '\n';
+                << static_cast<int>(command_data[0]) << std::dec 
+                << ": " << send_status.message() << '\n';
       if (i == retry_count)
         return false;  // Last attempt failed
       std::this_thread::sleep_for(
@@ -50,7 +55,8 @@ bool MotorActuator::sendCommandAndGetResponse(
     }
 
     // Waiting for a response
-    if (can_interface_->receiveFrame(response_id_, response_data_out)) {
+    auto recv_status = can_interface_->receiveFrame(response_id_, response_data_out);
+    if (recv_status.ok()) {
       // Successfully received a frame with the expected ID
       // Now check the command code within the data
       if (response_data_out[0] == expected_response_cmd_code) {
@@ -65,7 +71,7 @@ bool MotorActuator::sendCommandAndGetResponse(
         // 현재 시도를 실패로 처리
       }
     } else {
-      // receiveFrame returned false: 타임아웃 발생 또는 예상치 않은 ID의 프레임 수신
+      // receiveFrame returned an error: 타임아웃 발생 또는 예상치 않은 ID의 프레임 수신
       if (i < retry_count) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));  // 재시도 전 대기
       } else {
@@ -73,6 +79,7 @@ bool MotorActuator::sendCommandAndGetResponse(
                   << ": Receive timeout/failure for cmd 0x" << std::hex
                   << static_cast<int>(command_data[0]) << std::dec
                   << ". No more retries after " << retry_count << " attempts."
+                  << " Error: " << recv_status.message()
                   << '\n';
       }
     }
