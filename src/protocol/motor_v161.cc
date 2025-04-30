@@ -38,7 +38,10 @@ MotorV161::MotorV161(std::shared_ptr<CanInterface> can_interface,
   if (motor_registry_->addMotorId(motor_id_)) {
     // Update the filters on the CAN interface
     auto filter_ids = motor_registry_->getFilterIds();
-    can_interface_->setReceiveFilters(filter_ids);
+    auto status = can_interface_->setReceiveFilters(filter_ids);
+    if (!status.ok()) {
+      std::cerr << "Warning: Failed to set receive filters: " << status.message() << '\n';
+    }
   } else {
     std::cerr << "Failed to register motor ID " << static_cast<int>(motor_id_) 
               << " with the motor registry" << '\n';
@@ -63,10 +66,12 @@ bool MotorV161::sendCommandAndGetResponse(
     return false;
 
   for (int i = 0; i <= retry_count; ++i) {
-    if (!can_interface_->sendFrame(request_id_, command_data)) {
+    auto send_status = can_interface_->sendFrame(request_id_, command_data);
+    if (!send_status.ok()) {
       std::cerr << "Motor " << static_cast<int>(motor_id_)
                 << ": Failed to send command 0x" << std::hex
-                << static_cast<int>(command_data[0]) << std::dec << '\n';
+                << static_cast<int>(command_data[0]) << std::dec 
+                << ": " << send_status.message() << '\n';
       if (i == retry_count)
         return false;  // Last attempt failed
       std::this_thread::sleep_for(
@@ -75,7 +80,8 @@ bool MotorV161::sendCommandAndGetResponse(
     }
 
     // Waiting for a response
-    if (can_interface_->receiveFrame(response_id_, response_data_out)) {
+    auto recv_status = can_interface_->receiveFrame(response_id_, response_data_out);
+    if (recv_status.ok()) {
       // Successfully received a frame with the expected ID
       // Now check the command code within the data
       if (response_data_out[0] == expected_response_cmd_code) {
@@ -93,16 +99,11 @@ bool MotorV161::sendCommandAndGetResponse(
         // now.
       }
     } else {
-      // receiveFrame returned false: Timeout occurred or received frame with
+      // receiveFrame returned an error: Timeout occurred or received frame with
       // unexpected ID (handled inside receiveFrame)
       if (i < retry_count) {
         // Don't print timeout message here, it's potentially handled in
-        // receiveFrame or could be misleading std::cerr << "Motor " <<
-        // static_cast<int>(motor_id_)
-        //           << ": Receive timeout/failure for cmd 0x" << std::hex
-        //           << static_cast<int>(command_data[0]) << std::dec
-        //           << ". Retrying (" << i + 1 << "/" << retry_count << ")..."
-        //           << '\n';
+        // receiveFrame or could be misleading
         std::this_thread::sleep_for(std::chrono::milliseconds(
             50));  // Wait a little longer before retrying
       } else {
@@ -110,6 +111,7 @@ bool MotorV161::sendCommandAndGetResponse(
                   << ": Receive timeout/failure for cmd 0x" << std::hex
                   << static_cast<int>(command_data[0]) << std::dec
                   << ". No more retries after " << retry_count << " attempts."
+                  << " Error: " << recv_status.message()
                   << '\n';
       }
     }
