@@ -34,6 +34,10 @@ add_library(myactuator_rmd SHARED
     src/protocol/motor_v161.cc
     src/protocol/packing_v161.cc
     src/protocol/parsing_v161.cc
+    # New SRP-compliant classes
+    src/protocol/motor_configurator.cc
+    src/protocol/motor_status_querier.cc
+    src/protocol/motor_actuator.cc
     # Interface implementation
     src/can_interface.cc
     # Motor Registry implementation
