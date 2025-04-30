@@ -2,6 +2,7 @@
 #include <gmock/gmock.h>
 
 #include "myactuator_rmd/can_interface.h"
+#include "absl/status/status.h"
 
 // CanInterface::can_node_는 private이고 실제 CAN 하드웨어와 통신하기 때문에
 // 목(mock) 객체를 사용하여 테스트하는 것이 좋습니다.
@@ -74,7 +75,7 @@ TEST_F(CanInterfaceTest, DISABLED_SetReceiveFilters) {
   
   // 유효한 필터 ID 설정
   std::vector<uint32_t> filter_ids = {0x141, 0x145, 0x14A};
-  EXPECT_TRUE(can_interface.setReceiveFilters(filter_ids));
+  EXPECT_TRUE(can_interface.setReceiveFilters(filter_ids).ok());
   
   // 필터 ID 확인은 내부 상태를 확인하는 방법이 없어 구현하지 않았습니다.
   // 실제로는 CAN 프레임을 전송하고 수신하여 필터가 제대로 작동하는지 확인해야 합니다.
@@ -86,7 +87,7 @@ TEST_F(CanInterfaceTest, DISABLED_SetEmptyReceiveFilters) {
   
   // 빈 필터 ID 목록 설정
   std::vector<uint32_t> empty_filter_ids;
-  EXPECT_TRUE(can_interface.setReceiveFilters(empty_filter_ids));
+  EXPECT_TRUE(can_interface.setReceiveFilters(empty_filter_ids).ok());
 }
 
 // 테스트 케이스: 중복된 필터 ID가 있는 경우
@@ -95,7 +96,7 @@ TEST_F(CanInterfaceTest, DISABLED_SetDuplicateReceiveFilters) {
   
   // 중복된 필터 ID가 있는 목록 설정
   std::vector<uint32_t> duplicate_filter_ids = {0x141, 0x141, 0x145};
-  EXPECT_TRUE(can_interface.setReceiveFilters(duplicate_filter_ids));
+  EXPECT_TRUE(can_interface.setReceiveFilters(duplicate_filter_ids).ok());
   
   // 중복 ID가 자동으로 제거되는지는 CAN 드라이버에 따라 다를 수 있습니다.
 }
