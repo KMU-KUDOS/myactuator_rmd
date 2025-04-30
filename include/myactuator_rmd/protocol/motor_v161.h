@@ -9,6 +9,8 @@
 #include "myactuator_rmd/motor_registry.h"
 #include "myactuator_rmd/protocol/types_v161.h"
 #include "myactuator_rmd/protocol/motor_configurator.h"
+#include "myactuator_rmd/protocol/motor_actuator.h"
+#include "myactuator_rmd/protocol/motor_status_querier.h"
 
 namespace v161_motor_control {
 
@@ -178,10 +180,24 @@ class MotorV161 {
    */
   MotorConfigurator& getConfigurator() { return *configurator_; }
 
+  /**
+   * @brief 모터 액추에이터 작업을 위한 MotorActuator 인스턴스 얻기
+   * @return MotorActuator 인스턴스에 대한 참조
+   */
+  MotorActuator& getActuator() { return *actuator_; }
+
+  /**
+   * @brief 모터 상태 조회 작업을 위한 MotorStatusQuerier 인스턴스 얻기
+   * @return MotorStatusQuerier 인스턴스에 대한 참조
+   */
+  MotorStatusQuerier& getStatusQuerier() { return *status_querier_; }
+
  private:
   std::shared_ptr<CanInterface> can_interface_;
   std::shared_ptr<MotorRegistry> motor_registry_;
   std::shared_ptr<MotorConfigurator> configurator_;
+  std::unique_ptr<MotorActuator> actuator_;
+  std::unique_ptr<MotorStatusQuerier> status_querier_;
 
   uint8_t motor_id_;
   uint32_t request_id_;
