@@ -45,9 +45,12 @@ template absl::StatusOr<uint64_t> unpackLittleEndian<uint64_t>(
     const std::array<uint8_t, 8>& data, size_t index);
 
 // --- Read Command Response Parsing Function Implementation ---
-types::PidDataV161 parseReadPidResponse(const std::array<uint8_t, 8>& data) {
+absl::StatusOr<types::PidDataV161> parseReadPidResponse(const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_READ_PID) {
-    throw std::runtime_error("Invalid command for PID response");
+    return absl::InvalidArgumentError(
+        absl::StrCat("Invalid command for PID response. Expected: 0x", 
+                   std::hex, static_cast<int>(protocol::CMD_READ_PID),
+                   ", Got: 0x", static_cast<int>(data[0])));
   }
   types::PidDataV161 result;
 
@@ -61,59 +64,63 @@ types::PidDataV161 parseReadPidResponse(const std::array<uint8_t, 8>& data) {
   return result;
 }
 
-types::AccelDataV161 parseReadAccelResponse(
+absl::StatusOr<types::AccelDataV161> parseReadAccelResponse(
     const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_READ_ACCEL) {
-    throw std::runtime_error("Invalid command for Accel response");
+    return absl::InvalidArgumentError(
+        absl::StrCat("Invalid command for Accel response. Expected: 0x", 
+                   std::hex, static_cast<int>(protocol::CMD_READ_ACCEL),
+                   ", Got: 0x", static_cast<int>(data[0])));
   }
   types::AccelDataV161 result;
 
-  auto acceleration = unpackLittleEndian<int32_t>(data, 4);
-  if (!acceleration.ok()) {
-    throw std::runtime_error(absl::StrCat("Failed to parse acceleration: ", 
-                                         acceleration.status().message()));
+  auto acceleration_or = unpackLittleEndian<int32_t>(data, 4);
+  if (!acceleration_or.ok()) {
+    return acceleration_or.status();
   }
-  result.acceleration = *acceleration;
+  result.acceleration = *acceleration_or;
 
   return result;
 }
 
-types::EncoderDataV161 parseReadEncoderResponse(
+absl::StatusOr<types::EncoderDataV161> parseReadEncoderResponse(
     const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_READ_ENCODER) {
-    throw std::runtime_error("Invalid command code for Encoder response");
+    return absl::InvalidArgumentError(
+        absl::StrCat("Invalid command code for Encoder response. Expected: 0x",
+                   std::hex, static_cast<int>(protocol::CMD_READ_ENCODER),
+                   ", Got: 0x", static_cast<int>(data[0])));
   }
   types::EncoderDataV161 result;
 
-  auto position = unpackLittleEndian<uint16_t>(data, 2);
-  if (!position.ok()) {
-    throw std::runtime_error(absl::StrCat("Failed to parse position: ", 
-                                         position.status().message()));
+  auto position_or = unpackLittleEndian<uint16_t>(data, 2);
+  if (!position_or.ok()) {
+    return position_or.status();
   }
-  result.position = *position;
+  result.position = *position_or;
   
-  auto raw_position = unpackLittleEndian<uint16_t>(data, 4);
-  if (!raw_position.ok()) {
-    throw std::runtime_error(absl::StrCat("Failed to parse raw_position: ", 
-                                          raw_position.status().message()));
+  auto raw_position_or = unpackLittleEndian<uint16_t>(data, 4);
+  if (!raw_position_or.ok()) {
+    return raw_position_or.status();
   }
-  result.raw_position = *raw_position;
+  result.raw_position = *raw_position_or;
   
-  auto offset = unpackLittleEndian<uint16_t>(data, 6);
-  if (!offset.ok()) {
-    throw std::runtime_error(absl::StrCat("Failed to parse offset: ", 
-                                          offset.status().message()));
+  auto offset_or = unpackLittleEndian<uint16_t>(data, 6);
+  if (!offset_or.ok()) {
+    return offset_or.status();
   }
-  result.offset = *offset;
+  result.offset = *offset_or;
 
   return result;
 }
 
-types::MultiTurnAngleV161 parseReadMultiTurnAngleResponse(
+absl::StatusOr<types::MultiTurnAngleV161> parseReadMultiTurnAngleResponse(
     const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_READ_MULTI_TURN_ANGLE) {
-    throw std::runtime_error(
-        "Invalid command code for MultiTurnAngle response");
+    return absl::InvalidArgumentError(
+        absl::StrCat("Invalid command code for MultiTurnAngle response. Expected: 0x",
+                   std::hex, static_cast<int>(protocol::CMD_READ_MULTI_TURN_ANGLE),
+                   ", Got: 0x", static_cast<int>(data[0])));
   }
   types::MultiTurnAngleV161 result;
 
@@ -126,174 +133,225 @@ types::MultiTurnAngleV161 parseReadMultiTurnAngleResponse(
   }
   result.angle = angle_raw;
   // Alternative (if it's actually int32_t in DATA[4-7]):
-  // result.angle = static_cast<int64_t>(unpackLittleEndian<int32_t>(data, 4));
+  // auto angle_or = unpackLittleEndian<int32_t>(data, 4);
+  // if (!angle_or.ok()) {
+  //   return angle_or.status();
+  // }
+  // result.angle = static_cast<int64_t>(*angle_or);
 
   return result;
 }
 
-types::SingleCircleAngleV161 parseReadSingleCircleAngleResponse(
+absl::StatusOr<types::SingleCircleAngleV161> parseReadSingleCircleAngleResponse(
     const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_READ_SINGLE_CIRCLE_ANGLE) {
-    throw std::runtime_error("Invalid command for SingleCircleAngle response");
+    return absl::InvalidArgumentError(
+        absl::StrCat("Invalid command for SingleCircleAngle response. Expected: 0x",
+                   std::hex, static_cast<int>(protocol::CMD_READ_SINGLE_CIRCLE_ANGLE),
+                   ", Got: 0x", static_cast<int>(data[0])));
   }
   types::SingleCircleAngleV161 result;
 
-  result.angle = unpackLittleEndian<uint16_t>(data, 6);
+  auto angle_or = unpackLittleEndian<uint16_t>(data, 6);
+  if (!angle_or.ok()) {
+    return angle_or.status();
+  }
+  result.angle = *angle_or;
 
   return result;
 }
 
-types::Status1DataV161 parseReadStatus1Response(
+absl::StatusOr<types::Status1DataV161> parseReadStatus1Response(
     const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_READ_STATUS_1) {
-    throw std::runtime_error("Invalid command code for Status1 response");
+    return absl::InvalidArgumentError(
+        absl::StrCat("Invalid command code for Status1 response. Expected: 0x",
+                   std::hex, static_cast<int>(protocol::CMD_READ_STATUS_1),
+                   ", Got: 0x", static_cast<int>(data[0])));
   }
   types::Status1DataV161 result;
 
-  auto temperature = unpackLittleEndian<int8_t>(data, 1);
-  if (!temperature.ok()) {
-    throw std::runtime_error(absl::StrCat("Failed to parse temperature: ", 
-                                         temperature.status().message()));
+  auto temperature_or = unpackLittleEndian<int8_t>(data, 1);
+  if (!temperature_or.ok()) {
+    return temperature_or.status();
   }
-  result.temperature = *temperature;
+  result.temperature = *temperature_or;
   
-  auto voltage = unpackLittleEndian<uint16_t>(data, 3);
-  if (!voltage.ok()) {
-    throw std::runtime_error(absl::StrCat("Failed to parse voltage: ", 
-                                          voltage.status().message()));
+  auto voltage_or = unpackLittleEndian<uint16_t>(data, 3);
+  if (!voltage_or.ok()) {
+    return voltage_or.status();
   }
-  result.voltage = *voltage;
+  result.voltage = *voltage_or;
   
   result.error_state_raw = data[7];
 
   return result;
 }
 
-types::Status2DataV161 parseReadStatus2Response(
+absl::StatusOr<types::Status2DataV161> parseReadStatus2Response(
     const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_READ_STATUS_2) {
-    throw std::runtime_error("Invalid command code for Status2 response");
+    return absl::InvalidArgumentError(
+        absl::StrCat("Invalid command code for Status2 response. Expected: 0x",
+                   std::hex, static_cast<int>(protocol::CMD_READ_STATUS_2),
+                   ", Got: 0x", static_cast<int>(data[0])));
   }
   types::Status2DataV161 result;
 
-  auto temperature = unpackLittleEndian<int8_t>(data, 1);
-  if (!temperature.ok()) {
-    throw std::runtime_error(absl::StrCat("Failed to parse temperature: ", 
-                                         temperature.status().message()));
+  auto temperature_or = unpackLittleEndian<int8_t>(data, 1);
+  if (!temperature_or.ok()) {
+    return temperature_or.status();
   }
-  result.temperature = *temperature;
+  result.temperature = *temperature_or;
   
-  auto torque_current = unpackLittleEndian<int16_t>(data, 2);
-  if (!torque_current.ok()) {
-    throw std::runtime_error(absl::StrCat("Failed to parse torque_current: ", 
-                                         torque_current.status().message()));
+  auto torque_current_or = unpackLittleEndian<int16_t>(data, 2);
+  if (!torque_current_or.ok()) {
+    return torque_current_or.status();
   }
-  result.torque_current = *torque_current;
+  result.torque_current = *torque_current_or;
   
-  auto speed = unpackLittleEndian<int16_t>(data, 4);
-  if (!speed.ok()) {
-    throw std::runtime_error(absl::StrCat("Failed to parse speed: ", 
-                                         speed.status().message()));
+  auto speed_or = unpackLittleEndian<int16_t>(data, 4);
+  if (!speed_or.ok()) {
+    return speed_or.status();
   }
-  result.speed = *speed;
+  result.speed = *speed_or;
   
-  auto encoder_position = unpackLittleEndian<uint16_t>(data, 6);
-  if (!encoder_position.ok()) {
-    throw std::runtime_error(absl::StrCat("Failed to parse encoder_position: ", 
-                                         encoder_position.status().message()));
+  auto encoder_position_or = unpackLittleEndian<uint16_t>(data, 6);
+  if (!encoder_position_or.ok()) {
+    return encoder_position_or.status();
   }
-  result.encoder_position = *encoder_position;
+  result.encoder_position = *encoder_position_or;
 
   return result;
 }
 
-types::Status3DataV161 parseReadStatus3Response(
+absl::StatusOr<types::Status3DataV161> parseReadStatus3Response(
     const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_READ_STATUS_3) {
-    throw std::runtime_error("Invalid command code for Status3 response");
+    return absl::InvalidArgumentError(
+        absl::StrCat("Invalid command code for Status3 response. Expected: 0x",
+                   std::hex, static_cast<int>(protocol::CMD_READ_STATUS_3),
+                   ", Got: 0x", static_cast<int>(data[0])));
   }
   types::Status3DataV161 result;
 
-  result.current_A = unpackLittleEndian<int16_t>(data, 2);
-  result.current_B = unpackLittleEndian<int16_t>(data, 4);
-  result.current_C = unpackLittleEndian<int16_t>(data, 6);
+  auto current_a_or = unpackLittleEndian<int16_t>(data, 2);
+  if (!current_a_or.ok()) {
+    return current_a_or.status();
+  }
+  result.current_A = *current_a_or;
+  
+  auto current_b_or = unpackLittleEndian<int16_t>(data, 4);
+  if (!current_b_or.ok()) {
+    return current_b_or.status();
+  }
+  result.current_B = *current_b_or;
+  
+  auto current_c_or = unpackLittleEndian<int16_t>(data, 6);
+  if (!current_c_or.ok()) {
+    return current_c_or.status();
+  }
+  result.current_C = *current_c_or;
 
   return result;
 }
 
 // --- Write Command Response Parsing Implementation ---
-uint16_t parseWriteEncoderOffsetResponse(const std::array<uint8_t, 8>& data) {
+absl::StatusOr<uint16_t> parseWriteEncoderOffsetResponse(const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_WRITE_ENCODER_OFFSET) {
-    throw std::runtime_error(
-        "Invalid command code for WriteEncoderOffset response");
+    return absl::InvalidArgumentError(
+        absl::StrCat("Invalid command code for WriteEncoderOffset response. Expected: 0x",
+                   std::hex, static_cast<int>(protocol::CMD_WRITE_ENCODER_OFFSET),
+                   ", Got: 0x", static_cast<int>(data[0])));
   }
-  return unpackLittleEndian<uint16_t>(data, 6);
+  
+  auto offset_or = unpackLittleEndian<uint16_t>(data, 6);
+  if (!offset_or.ok()) {
+    return offset_or.status();
+  }
+  return *offset_or;
 }
 
-uint16_t parseWritePosAsZeroRomResponse(const std::array<uint8_t, 8>& data) {
+absl::StatusOr<uint16_t> parseWritePosAsZeroRomResponse(const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_WRITE_POS_AS_ZERO_ROM) {
-    throw std::runtime_error(
-        "Invalid command code for WritePosAsZeroRom response");
+    return absl::InvalidArgumentError(
+        absl::StrCat("Invalid command code for WritePosAsZeroRom response. Expected: 0x",
+                   std::hex, static_cast<int>(protocol::CMD_WRITE_POS_AS_ZERO_ROM),
+                   ", Got: 0x", static_cast<int>(data[0])));
   }
-  return unpackLittleEndian<uint16_t>(data, 6);
+  
+  auto offset_or = unpackLittleEndian<uint16_t>(data, 6);
+  if (!offset_or.ok()) {
+    return offset_or.status();
+  }
+  return *offset_or;
 }
 
-types::Status1DataV161 parseClearErrorFlagResponse(
+absl::StatusOr<types::Status1DataV161> parseClearErrorFlagResponse(
     const std::array<uint8_t, 8>& data) {
   if (data[0] != protocol::CMD_CLEAR_ERROR) {
-    throw std::runtime_error(
-        "Invalid command code for ClearErrorFlag response");
+    return absl::InvalidArgumentError(
+        absl::StrCat("Invalid command code for ClearErrorFlag response. Expected: 0x",
+                   std::hex, static_cast<int>(protocol::CMD_CLEAR_ERROR),
+                   ", Got: 0x", static_cast<int>(data[0])));
   }
 
   // 직접 Status1 데이터를 파싱합니다 (parseReadStatus1Response의 내부 구현과
   // 동일)
   types::Status1DataV161 result;
-  result.temperature = unpackLittleEndian<int8_t>(data, 1);
-  result.voltage = unpackLittleEndian<uint16_t>(data, 3);
+  
+  auto temperature_or = unpackLittleEndian<int8_t>(data, 1);
+  if (!temperature_or.ok()) {
+    return temperature_or.status();
+  }
+  result.temperature = *temperature_or;
+  
+  auto voltage_or = unpackLittleEndian<uint16_t>(data, 3);
+  if (!voltage_or.ok()) {
+    return voltage_or.status();
+  }
+  result.voltage = *voltage_or;
+  
   result.error_state_raw = data[7];
 
   return result;
 }
 
 // --- Control Command Response Parsing Implementation ---
-types::Status2DataV161 parseClosedLoopResponse(
+absl::StatusOr<types::Status2DataV161> parseClosedLoopResponse(
     const std::array<uint8_t, 8>& data, uint8_t expected_cmd_code) {
   // First, verify that the response command code matches the code you expect
   if (data[0] != expected_cmd_code) {
-    throw std::runtime_error(
-        "Invalid command code for closed-loop response Expected 0x" +
-        std::to_string(expected_cmd_code) + " got 0x" +
-        std::to_string(data[0]));
+    return absl::InvalidArgumentError(
+        absl::StrCat("Invalid command code for closed-loop response. Expected: 0x",
+                   std::hex, static_cast<int>(expected_cmd_code),
+                   ", Got: 0x", static_cast<int>(data[0])));
   }
   types::Status2DataV161 result;
 
-  auto temperature = unpackLittleEndian<int8_t>(data, 1);
-  if (!temperature.ok()) {
-    throw std::runtime_error(absl::StrCat("Failed to parse temperature: ", 
-                                         temperature.status().message()));
+  auto temperature_or = unpackLittleEndian<int8_t>(data, 1);
+  if (!temperature_or.ok()) {
+    return temperature_or.status();
   }
-  result.temperature = *temperature;
+  result.temperature = *temperature_or;
   
-  auto torque_current = unpackLittleEndian<int16_t>(data, 2);
-  if (!torque_current.ok()) {
-    throw std::runtime_error(absl::StrCat("Failed to parse torque_current: ", 
-                                         torque_current.status().message()));
+  auto torque_current_or = unpackLittleEndian<int16_t>(data, 2);
+  if (!torque_current_or.ok()) {
+    return torque_current_or.status();
   }
-  result.torque_current = *torque_current;
+  result.torque_current = *torque_current_or;
   
-  auto speed = unpackLittleEndian<int16_t>(data, 4);
-  if (!speed.ok()) {
-    throw std::runtime_error(absl::StrCat("Failed to parse speed: ", 
-                                         speed.status().message()));
+  auto speed_or = unpackLittleEndian<int16_t>(data, 4);
+  if (!speed_or.ok()) {
+    return speed_or.status();
   }
-  result.speed = *speed;
+  result.speed = *speed_or;
   
-  auto encoder_position = unpackLittleEndian<uint32_t>(data, 6);
-  if (!encoder_position.ok()) {
-    throw std::runtime_error(absl::StrCat("Failed to parse encoder_position: ", 
-                                         encoder_position.status().message()));
+  auto encoder_position_or = unpackLittleEndian<uint32_t>(data, 6);
+  if (!encoder_position_or.ok()) {
+    return encoder_position_or.status();
   }
-  result.encoder_position = *encoder_position;
+  result.encoder_position = *encoder_position_or;
 
   return result;
 }

@@ -26,54 +26,101 @@ template <typename T>
 absl::StatusOr<T> unpackLittleEndian(const std::array<uint8_t, 8>& data, size_t index);
 
 // --- Read Command Response Parsing Function Declaration
-types::PidDataV161 parseReadPidResponse(const std::array<uint8_t, 8>& data);
-types::AccelDataV161 parseReadAccelResponse(const std::array<uint8_t, 8>& data);
-types::EncoderDataV161 parseReadEncoderResponse(
+/**
+ * @brief Parse PID response data
+ * @param data Array of received data
+ * @return StatusOr containing the parsed PID data or an error status
+ */
+absl::StatusOr<types::PidDataV161> parseReadPidResponse(const std::array<uint8_t, 8>& data);
+
+/**
+ * @brief Parse acceleration response data
+ * @param data Array of received data
+ * @return StatusOr containing the parsed acceleration data or an error status
+ */
+absl::StatusOr<types::AccelDataV161> parseReadAccelResponse(const std::array<uint8_t, 8>& data);
+
+/**
+ * @brief Parse encoder response data
+ * @param data Array of received data
+ * @return StatusOr containing the parsed encoder data or an error status
+ */
+absl::StatusOr<types::EncoderDataV161> parseReadEncoderResponse(
     const std::array<uint8_t, 8>& data);
-types::MultiTurnAngleV161 parseReadMultiTurnAngleResponse(
+
+/**
+ * @brief Parse multi-turn angle response data
+ * @param data Array of received data
+ * @return StatusOr containing the parsed multi-turn angle data or an error status
+ */
+absl::StatusOr<types::MultiTurnAngleV161> parseReadMultiTurnAngleResponse(
     const std::array<uint8_t, 8>& data);
-types::SingleCircleAngleV161 parseReadSingleCircleAngleResponse(
+
+/**
+ * @brief Parse single circle angle response data
+ * @param data Array of received data
+ * @return StatusOr containing the parsed single circle angle data or an error status
+ */
+absl::StatusOr<types::SingleCircleAngleV161> parseReadSingleCircleAngleResponse(
     const std::array<uint8_t, 8>& data);
-types::Status1DataV161 parseReadStatus1Response(
+
+/**
+ * @brief Parse status 1 response data
+ * @param data Array of received data
+ * @return StatusOr containing the parsed status 1 data or an error status
+ */
+absl::StatusOr<types::Status1DataV161> parseReadStatus1Response(
     const std::array<uint8_t, 8>& data);
-types::Status2DataV161 parseReadStatus2Response(
+
+/**
+ * @brief Parse status 2 response data
+ * @param data Array of received data
+ * @return StatusOr containing the parsed status 2 data or an error status
+ */
+absl::StatusOr<types::Status2DataV161> parseReadStatus2Response(
     const std::array<uint8_t, 8>& data);
-types::Status3DataV161 parseReadStatus3Response(
+
+/**
+ * @brief Parse status 3 response data
+ * @param data Array of received data
+ * @return StatusOr containing the parsed status 3 data or an error status
+ */
+absl::StatusOr<types::Status3DataV161> parseReadStatus3Response(
     const std::array<uint8_t, 8>& data);
 
 // --- Write/Action Command Response Parsing Function Declaration ---
 /**
  * @brief 0x91: Parse the encoder offset value set in the response
- * @param data: Array of received data
- * @return Parsed offset value (uint16_t)
+ * @param data Array of received data
+ * @return StatusOr containing the parsed offset value or an error status
  */
-uint16_t parseWriteEncoderOffsetResponse(const std::array<uint8_t, 8>& data);
+absl::StatusOr<uint16_t> parseWriteEncoderOffsetResponse(const std::array<uint8_t, 8>& data);
 
 /**
  * @brief 0x19: Parse the encoder offset value set in the response
- * @param data: Array of received data
- * @return Parsed offset value (uint16_t)
+ * @param data Array of received data
+ * @return StatusOr containing the parsed offset value or an error status
  */
-uint16_t parseWritePosAsZeroRomResponse(const std::array<uint8_t, 8>& data);
+absl::StatusOr<uint16_t> parseWritePosAsZeroRomResponse(const std::array<uint8_t, 8>& data);
 
 /**
  * @brief 0x9B: Parses the response (same format as Status 1).
- * @param data: Array of received data
- * @return Parsed Status1 data
+ * @param data Array of received data
+ * @return StatusOr containing the parsed Status1 data or an error status
  */
-types::Status1DataV161 parseClearErrorFlagResponse(
+absl::StatusOr<types::Status1DataV161> parseClearErrorFlagResponse(
     const std::array<uint8_t, 8>& data);
 
 // --- Control Command Response Parsing Function Declaration ---
 /**
  * @brief Parses responses from closed loop control instructions (0xA1 to 0xA6)
  * (same as Status 2)
- * @param data: Array of received data
- * @param expected_cmd_code: Command codes to expect in the response (0xA1
+ * @param data Array of received data
+ * @param expected_cmd_code Command codes to expect in the response (0xA1
  * through 0xA6)
- * @return Parsed Status2 data
+ * @return StatusOr containing the parsed Status2 data or an error status
  */
-types::Status2DataV161 parseClosedLoopResponse(
+absl::StatusOr<types::Status2DataV161> parseClosedLoopResponse(
     const std::array<uint8_t, 8>& data, uint8_t expected_cmd_code);
 
 }  // namespace v161_motor_control::parsing
