@@ -149,7 +149,7 @@ int main() {
     std::cout << '\n' << "Write PID to RAM (0x31)..." << '\n';
     auto current_pid = motor.readPid();
 
-    if (motor.writePidToRam(current_pid)) {
+    if (motor.getConfigurator().writePidToRam(current_pid)) {
       std::cout << " -> Successfully wrote PID to RAM (echo verified)" << '\n';
     } else {
       std::cerr << " -> Failed to write PID to RAM" << '\n';
@@ -161,7 +161,7 @@ int main() {
     std::cout << "Write Acceleration to RAM (0x34)..." << '\n';
     auto current_accel = motor.readAcceleration();
 
-    if (motor.writeAccelerationToRam(current_accel)) {
+    if (motor.getConfigurator().writeAccelerationToRam(current_accel)) {
       std::cout << " -> Successfully wrote Acceleration to RAM (echo verified)"
                 << '\n';
     } else {
@@ -180,7 +180,7 @@ int main() {
     std::cout << " -> Successfully sent write new offset: " << new_offset
               << '\n';
 
-    if (motor.writeEncoderOffset(new_offset, written_offset)) {
+    if (motor.getConfigurator().writeEncoderOffset(new_offset, written_offset)) {
       std::cout << " -> Successfully sent Write Encoder Offset command. Motor "
                    "reported written offset: "
                 << written_offset << '\n';
@@ -211,7 +211,7 @@ int main() {
               << "Testing Write Position As Zero to ROM (0x19)..." << '\n';
     uint16_t zero_offset_written = 0;
 
-    if (motor.writePositionAsZero(zero_offset_written)) {
+    if (motor.getConfigurator().writePositionAsZero(zero_offset_written)) {
       std::cout << " -> Successfully sent Write Position As Zero command. "
                    "Reported new offset: "
                 << zero_offset_written << '\n';
