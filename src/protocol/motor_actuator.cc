@@ -9,6 +9,7 @@
 #include <thread>
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 
 namespace v161_motor_control {
@@ -32,13 +33,13 @@ MotorActuator::~MotorActuator() {
   // 소멸자 구현
 }
 
-bool MotorActuator::sendCommandAndGetResponse(
+absl::Status MotorActuator::sendCommandAndGetResponse(
     const std::array<uint8_t, 8>& command_data,
     uint8_t expected_response_cmd_code,
     std::array<uint8_t, 8>& response_data_out,
     int retry_count) {
   if (!can_interface_)
-    return false;
+    return absl::InternalError("CAN interface is null");
 
   for (int i = 0; i <= retry_count; ++i) {
     auto send_status = can_interface_->sendFrame(request_id_, command_data);
@@ -48,7 +49,7 @@ bool MotorActuator::sendCommandAndGetResponse(
                 << static_cast<int>(command_data[0]) << std::dec 
                 << ": " << send_status.message() << '\n';
       if (i == retry_count)
-        return false;  // Last attempt failed
+        return send_status;  // Last attempt failed, return the status
       std::this_thread::sleep_for(
           std::chrono::milliseconds(10));  // Retry after a short wait
       continue;
@@ -60,7 +61,7 @@ bool MotorActuator::sendCommandAndGetResponse(
       // Successfully received a frame with the expected ID
       // Now check the command code within the data
       if (response_data_out[0] == expected_response_cmd_code) {
-        return true;  // Success: Correct ID and correct command code
+        return absl::OkStatus();  // Success: Correct ID and correct command code
       } else {
         // Received correct ID, but unexpected command code
         std::cerr << "Motor " << static_cast<int>(motor_id_)
@@ -81,199 +82,252 @@ bool MotorActuator::sendCommandAndGetResponse(
                   << ". No more retries after " << retry_count << " attempts."
                   << " Error: " << recv_status.message()
                   << '\n';
+        return recv_status;  // Return the receive error status
       }
     }
   }
-  return false;  // 모든 재시도 실패
+  return absl::DeadlineExceededError(absl::StrCat(
+      "Failed to get valid response after ", retry_count + 1, " attempts"));
 }
 
-bool MotorActuator::resetMotorError() {
-  auto command_data = packing::createClearErrorFlagFrame();
-  std::array<uint8_t, 8> response_data;
-  types::Status1DataV161 status_out;
-
-  if (sendCommandAndGetResponse(
-          command_data, protocol::CMD_CLEAR_ERROR, response_data, 1)) {
-    try {
-      status_out = parsing::parseClearErrorFlagResponse(response_data);
-
-      if (status_out.error_state_raw == 0) {
-        std::cout << "Motor " << static_cast<int>(motor_id_)
-                  << ": Error flags cleared Successfully" << '\n';
-      } else {
-        std::cout << "Motor " << static_cast<int>(motor_id_)
-                  << ": Clear error command sent, but errors might still "
-                     "persist (Raw Error: 0x"
-                  << std::hex << static_cast<int>(status_out.error_state_raw)
-                  << std::dec << "). Ensure error condition is resolved"
-                  << '\n';
-      }
-      return true;
-    } catch (const std::exception& e) {
-      std::cerr << "Motor " << static_cast<int>(motor_id_)
-                << " Error parsing clearErrorFlag response: " << e.what() << '\n';
-    }
+absl::StatusOr<types::Status1DataV161> MotorActuator::resetMotorError() {
+  absl::StatusOr<std::array<uint8_t, 8>> command_data_or = packing::createClearErrorFlagFrame();
+  if (!command_data_or.ok()) {
+    return command_data_or.status();
   }
-  return false;
-}
-
-bool MotorActuator::powerOffMotor() {
-  auto command_data = packing::createMotorOffFrame();
+  
   std::array<uint8_t, 8> response_data;
-
-  // The response is sent to the Echo
-  if (sendCommandAndGetResponse(
-          command_data, protocol::CMD_MOTOR_OFF, response_data, 1)) {
-    return response_data == command_data;
+  absl::Status status = sendCommandAndGetResponse(
+          command_data_or.value(), protocol::CMD_CLEAR_ERROR, response_data, 1);
+  
+  if (!status.ok()) {
+    return status;
   }
-  return false;
-}
-
-bool MotorActuator::stopMotor() {
-  auto command_data = packing::createMotorStopFrame();
-  std::array<uint8_t, 8> response_data;
-
-  // The response is sent to the Echo
-  if (sendCommandAndGetResponse(
-          command_data, protocol::CMD_MOTOR_STOP, response_data, 1)) {
-    return response_data == command_data;
+  
+  absl::StatusOr<types::Status1DataV161> status_or = parsing::parseClearErrorFlagResponse(response_data);
+  if (!status_or.ok()) {
+    return status_or.status();
   }
-  return false;
-}
-
-bool MotorActuator::runMotor() {
-  auto command_data = packing::createMotorRunFrame();
-  std::array<uint8_t, 8> response_data;
-
-  // The response is sent to the Echo
-  if (sendCommandAndGetResponse(
-          command_data, protocol::CMD_MOTOR_RUN, response_data, 1)) {
-    return response_data == command_data;
+  
+  types::Status1DataV161 status_out = status_or.value();
+  if (status_out.error_state_raw == 0) {
+    std::cout << "Motor " << static_cast<int>(motor_id_)
+              << ": Error flags cleared Successfully" << '\n';
+  } else {
+    std::cout << "Motor " << static_cast<int>(motor_id_)
+              << ": Clear error command sent, but errors might still "
+                 "persist (Raw Error: 0x"
+              << std::hex << static_cast<int>(status_out.error_state_raw)
+              << std::dec << "). Ensure error condition is resolved"
+              << '\n';
   }
-  return false;
+  return status_out;
 }
 
-bool MotorActuator::setTorque(int16_t iqControl, types::TorqueResponseV161& torque_data_out) {
-  auto command_data = packing::createTorqueControlFrame(iqControl);
-  std::array<uint8_t, 8> response_data;
+absl::Status MotorActuator::powerOffMotor() {
+  absl::StatusOr<std::array<uint8_t, 8>> command_data_or = packing::createMotorOffFrame();
+  if (!command_data_or.ok()) {
+    return command_data_or.status();
+  }
 
-  if (sendCommandAndGetResponse(command_data,
-                                protocol::CMD_TORQUE_CONTROL,
-                                response_data,
-                                0)) {  // Control commands run without retries
-    try {
-      // 임시로 Status2DataV161로 변환한 후 필요한 데이터만 추출
-      auto status_data = parsing::parseClosedLoopResponse(
-          response_data, protocol::CMD_TORQUE_CONTROL);
+  std::array<uint8_t, 8> response_data;
+  absl::Status status = sendCommandAndGetResponse(
+          command_data_or.value(), protocol::CMD_MOTOR_OFF, response_data, 1);
+  
+  if (!status.ok()) {
+    return status;
+  }
+
+  // Check if the response matches the command (echo verification)
+  if (response_data != command_data_or.value()) {
+    return absl::InternalError("Motor response does not match command (echo verification failed)");
+  }
+  
+  return absl::OkStatus();
+}
+
+absl::Status MotorActuator::stopMotor() {
+  absl::StatusOr<std::array<uint8_t, 8>> command_data_or = packing::createMotorStopFrame();
+  if (!command_data_or.ok()) {
+    return command_data_or.status();
+  }
+
+  std::array<uint8_t, 8> response_data;
+  absl::Status status = sendCommandAndGetResponse(
+          command_data_or.value(), protocol::CMD_MOTOR_STOP, response_data, 1);
+  
+  if (!status.ok()) {
+    return status;
+  }
+
+  // Check if the response matches the command (echo verification)
+  if (response_data != command_data_or.value()) {
+    return absl::InternalError("Motor response does not match command (echo verification failed)");
+  }
+  
+  return absl::OkStatus();
+}
+
+absl::Status MotorActuator::runMotor() {
+  absl::StatusOr<std::array<uint8_t, 8>> command_data_or = packing::createMotorRunFrame();
+  if (!command_data_or.ok()) {
+    return command_data_or.status();
+  }
+
+  std::array<uint8_t, 8> response_data;
+  absl::Status status = sendCommandAndGetResponse(
+          command_data_or.value(), protocol::CMD_MOTOR_RUN, response_data, 1);
+  
+  if (!status.ok()) {
+    return status;
+  }
+
+  // Check if the response matches the command (echo verification)
+  if (response_data != command_data_or.value()) {
+    return absl::InternalError("Motor response does not match command (echo verification failed)");
+  }
+  
+  return absl::OkStatus();
+}
+
+absl::StatusOr<types::TorqueResponseV161> MotorActuator::setTorque(int16_t iqControl) {
+  absl::StatusOr<std::array<uint8_t, 8>> command_data_or = packing::createTorqueControlFrame(iqControl);
+  if (!command_data_or.ok()) {
+    return command_data_or.status();
+  }
+  
+  std::array<uint8_t, 8> response_data;
+  absl::Status status = sendCommandAndGetResponse(
+      command_data_or.value(), protocol::CMD_TORQUE_CONTROL, response_data, 0);
       
-      // Status2DataV161에서 TorqueResponseV161로 데이터 복사
-      torque_data_out.torque_current = status_data.torque_current;
-      torque_data_out.speed = status_data.speed;
-      torque_data_out.encoder_position = status_data.encoder_position;
-
-      return true;
-    } catch (const std::exception& e) {
-      std::cerr << "Motor " << static_cast<int>(motor_id_)
-                << " Error parsing TorqueControl response: " << e.what()
-                << '\n';
-    }
+  if (!status.ok()) {
+    return status;
   }
-  return false;
+  
+  // 응답 데이터 파싱
+  absl::StatusOr<types::Status2DataV161> status_data_or = 
+      parsing::parseClosedLoopResponse(response_data, protocol::CMD_TORQUE_CONTROL);
+  
+  if (!status_data_or.ok()) {
+    return status_data_or.status();
+  }
+  
+  // Status2DataV161에서 TorqueResponseV161로 데이터 복사
+  types::TorqueResponseV161 torque_data_out;
+  torque_data_out.torque_current = status_data_or.value().torque_current;
+  torque_data_out.speed = status_data_or.value().speed;
+  torque_data_out.encoder_position = status_data_or.value().encoder_position;
+  
+  return torque_data_out;
 }
 
-bool MotorActuator::setSpeed(int32_t speed, types::SpeedResponseV161& speed_data_out) {
-  auto command_data = packing::createSpeedControlFrame(speed);
+absl::StatusOr<types::SpeedResponseV161> MotorActuator::setSpeed(int32_t speed) {
+  absl::StatusOr<std::array<uint8_t, 8>> command_data_or = packing::createSpeedControlFrame(speed);
+  if (!command_data_or.ok()) {
+    return command_data_or.status();
+  }
+  
   std::array<uint8_t, 8> response_data;
-
-  if (sendCommandAndGetResponse(
-          command_data, protocol::CMD_SPEED_CONTROL, response_data, 0)) {
-    try {
-      // 임시로 Status2DataV161로 변환한 후 필요한 데이터만 추출
-      auto status_data = parsing::parseClosedLoopResponse(
-          response_data, protocol::CMD_SPEED_CONTROL);
+  absl::Status status = sendCommandAndGetResponse(
+      command_data_or.value(), protocol::CMD_SPEED_CONTROL, response_data, 0);
       
-      // Status2DataV161에서 SpeedResponseV161로 데이터 복사
-      speed_data_out.speed = status_data.speed;
-      speed_data_out.torque_current = status_data.torque_current;
-      speed_data_out.encoder_position = status_data.encoder_position;
-
-      return true;
-    } catch (const std::exception& e) {
-      std::cerr << "Motor " << static_cast<int>(motor_id_)
-                << " Error parsing SpeedControl response: " << e.what() << '\n';
-    }
+  if (!status.ok()) {
+    return status;
   }
-  return false;
+  
+  // 응답 데이터 파싱
+  absl::StatusOr<types::Status2DataV161> status_data_or = 
+      parsing::parseClosedLoopResponse(response_data, protocol::CMD_SPEED_CONTROL);
+  
+  if (!status_data_or.ok()) {
+    return status_data_or.status();
+  }
+  
+  // Status2DataV161에서 SpeedResponseV161로 데이터 복사
+  types::SpeedResponseV161 speed_data_out;
+  speed_data_out.speed = status_data_or.value().speed;
+  speed_data_out.torque_current = status_data_or.value().torque_current;
+  speed_data_out.encoder_position = status_data_or.value().encoder_position;
+  
+  return speed_data_out;
 }
 
-bool MotorActuator::setPositionAbsolute(int32_t position, uint16_t max_speed,
-                                        types::PositionResponseV161& position_data_out) {
-  auto command_data =
+absl::StatusOr<types::PositionResponseV161> MotorActuator::setPositionAbsolute(
+    int32_t position, uint16_t max_speed) {
+  absl::StatusOr<std::array<uint8_t, 8>> command_data_or = 
       packing::createPositionControl2Frame(position, max_speed);
-  std::array<uint8_t, 8> response_data;
-
-  if (sendCommandAndGetResponse(
-          command_data, protocol::CMD_POSITION_CONTROL_2, response_data, 0)) {
-    try {
-      // 임시로 Status2DataV161로 변환한 후 필요한 데이터만 추출
-      auto status_data = parsing::parseClosedLoopResponse(
-          response_data, protocol::CMD_POSITION_CONTROL_2);
-      
-      // Status2DataV161에서 PositionResponseV161로 데이터 복사
-      position_data_out.encoder_position = status_data.encoder_position;
-      position_data_out.speed = status_data.speed;
-      position_data_out.torque_current = status_data.torque_current;
-
-      return true;
-    } catch (const std::exception& e) {
-      std::cerr << "Motor " << static_cast<int>(motor_id_)
-                << " Error parsing PositionControl2 response: " << e.what()
-                << '\n';
-    }
+  if (!command_data_or.ok()) {
+    return command_data_or.status();
   }
-  return false;
+  
+  std::array<uint8_t, 8> response_data;
+  absl::Status status = sendCommandAndGetResponse(
+      command_data_or.value(), protocol::CMD_POSITION_CONTROL_2, response_data, 0);
+      
+  if (!status.ok()) {
+    return status;
+  }
+  
+  // 응답 데이터 파싱
+  absl::StatusOr<types::Status2DataV161> status_data_or = 
+      parsing::parseClosedLoopResponse(response_data, protocol::CMD_POSITION_CONTROL_2);
+  
+  if (!status_data_or.ok()) {
+    return status_data_or.status();
+  }
+  
+  // Status2DataV161에서 PositionResponseV161로 데이터 복사
+  types::PositionResponseV161 position_data_out;
+  position_data_out.encoder_position = status_data_or.value().encoder_position;
+  position_data_out.speed = status_data_or.value().speed;
+  position_data_out.torque_current = status_data_or.value().torque_current;
+  
+  return position_data_out;
 }
 
-bool MotorActuator::setAbsolutePosition(uint16_t angle, uint16_t max_speed,
-                                        types::PositionResponseV161& position_data_out) {
+absl::StatusOr<types::PositionResponseV161> MotorActuator::setAbsolutePosition(
+    uint16_t angle, uint16_t max_speed) {
   if (angle > 35999) {
-    std::cerr
-        << "Warning: angle for PositionControl3 should be 0 ~ 35999"
-        << '\n';
-    // angle = angle % 36000; // 또는 오류로 처리
+    return absl::InvalidArgumentError(
+        absl::StrCat("Angle for PositionControl4 should be 0 ~ 35999, got ", angle));
   }
   
   // 기본적으로 시계 방향을 사용
   auto direction = types::SpinDirection::CLOCKWISE;
   
-  auto command_data =
+  absl::StatusOr<std::array<uint8_t, 8>> command_data_or = 
       packing::createPositionControl4Frame(angle, direction, max_speed);
-  std::array<uint8_t, 8> response_data;
-
-  if (sendCommandAndGetResponse(
-          command_data, protocol::CMD_POSITION_CONTROL_4, response_data, 0)) {
-    try {
-      // 임시로 Status2DataV161로 변환한 후 필요한 데이터만 추출
-      auto status_data = parsing::parseClosedLoopResponse(
-          response_data, protocol::CMD_POSITION_CONTROL_4);
-      
-      // Status2DataV161에서 PositionResponseV161로 데이터 복사
-      position_data_out.encoder_position = status_data.encoder_position;
-      position_data_out.speed = status_data.speed;
-      position_data_out.torque_current = status_data.torque_current;
-
-      return true;
-    } catch (const std::exception& e) {
-      std::cerr << "Motor " << static_cast<int>(motor_id_)
-                << " Error parsing PositionControl4 response: " << e.what()
-                << '\n';
-    }
+  if (!command_data_or.ok()) {
+    return command_data_or.status();
   }
-  return false;
+  
+  std::array<uint8_t, 8> response_data;
+  absl::Status status = sendCommandAndGetResponse(
+      command_data_or.value(), protocol::CMD_POSITION_CONTROL_4, response_data, 0);
+      
+  if (!status.ok()) {
+    return status;
+  }
+  
+  // 응답 데이터 파싱
+  absl::StatusOr<types::Status2DataV161> status_data_or = 
+      parsing::parseClosedLoopResponse(response_data, protocol::CMD_POSITION_CONTROL_4);
+  
+  if (!status_data_or.ok()) {
+    return status_data_or.status();
+  }
+  
+  // Status2DataV161에서 PositionResponseV161로 데이터 복사
+  types::PositionResponseV161 position_data_out;
+  position_data_out.encoder_position = status_data_or.value().encoder_position;
+  position_data_out.speed = status_data_or.value().speed;
+  position_data_out.torque_current = status_data_or.value().torque_current;
+  
+  return position_data_out;
 }
 
-bool MotorActuator::setPositionRelative(int32_t position_increment, uint16_t max_speed,
-                                        types::PositionResponseV161& position_data_out) {
+absl::StatusOr<types::PositionResponseV161> MotorActuator::setPositionRelative(
+    int32_t position_increment, uint16_t max_speed) {
   auto direction = types::SpinDirection::CLOCKWISE; // 기본값으로 시계 방향 사용
   auto angle_setpoint = static_cast<uint16_t>(std::abs(position_increment) % 36000);
   
@@ -281,29 +335,35 @@ bool MotorActuator::setPositionRelative(int32_t position_increment, uint16_t max
     direction = types::SpinDirection::COUNTER_CLOCKWISE;
   }
   
-  auto command_data = packing::createPositionControl3Frame(angle_setpoint, direction);
-  std::array<uint8_t, 8> response_data;
-
-  if (sendCommandAndGetResponse(
-          command_data, protocol::CMD_POSITION_CONTROL_3, response_data, 0)) {
-    try {
-      // 임시로 Status2DataV161로 변환한 후 필요한 데이터만 추출
-      auto status_data = parsing::parseClosedLoopResponse(
-          response_data, protocol::CMD_POSITION_CONTROL_3);
-      
-      // Status2DataV161에서 PositionResponseV161로 데이터 복사
-      position_data_out.encoder_position = status_data.encoder_position;
-      position_data_out.speed = status_data.speed;
-      position_data_out.torque_current = status_data.torque_current;
-
-      return true;
-    } catch (const std::exception& e) {
-      std::cerr << "Motor " << static_cast<int>(motor_id_)
-                << " Error parsing PositionControl3 response: " << e.what()
-                << '\n';
-    }
+  absl::StatusOr<std::array<uint8_t, 8>> command_data_or = 
+      packing::createPositionControl3Frame(angle_setpoint, direction);
+  if (!command_data_or.ok()) {
+    return command_data_or.status();
   }
-  return false;
+  
+  std::array<uint8_t, 8> response_data;
+  absl::Status status = sendCommandAndGetResponse(
+      command_data_or.value(), protocol::CMD_POSITION_CONTROL_3, response_data, 0);
+      
+  if (!status.ok()) {
+    return status;
+  }
+  
+  // 응답 데이터 파싱
+  absl::StatusOr<types::Status2DataV161> status_data_or = 
+      parsing::parseClosedLoopResponse(response_data, protocol::CMD_POSITION_CONTROL_3);
+  
+  if (!status_data_or.ok()) {
+    return status_data_or.status();
+  }
+  
+  // Status2DataV161에서 PositionResponseV161로 데이터 복사
+  types::PositionResponseV161 position_data_out;
+  position_data_out.encoder_position = status_data_or.value().encoder_position;
+  position_data_out.speed = status_data_or.value().speed;
+  position_data_out.torque_current = status_data_or.value().torque_current;
+  
+  return position_data_out;
 }
 
 }  // namespace v161_motor_control 
