@@ -5,12 +5,25 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+include(FetchContent)
+enable_testing()
+
 if(NOT UNIX)
     message(FATAL_ERROR "Currently this driver only supports Linux!")
 endif()
 
 # Find required packages
 find_package(Threads REQUIRED)
+
+# GoogleTest Integration
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG    release-1.11.0 # 안정적인 버전을 위해 특정 태그 사용
+)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
 
 # --- Build the myactuator_rmd shared library ---
 add_library(myactuator_rmd SHARED
@@ -58,6 +71,8 @@ install(TARGETS myactuator_rmd v161_example
 install(DIRECTORY include/
     DESTINATION include
 )
+
+add_subdirectory(tests)
 
 message(STATUS "Project: ${PROJECT_NAME}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
