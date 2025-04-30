@@ -6,6 +6,7 @@
 #include <cstring>  // for memcpy
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "myactuator_rmd/protocol/protocol_v161.h"  // Command code
 
@@ -56,40 +57,40 @@ template absl::Status packLittleEndian<uint64_t>(std::array<uint8_t, 8>& data,
                                          uint64_t value);
 
 // --- Read Command Frame ---
-std::array<uint8_t, 8> createReadPidFrame() {
-  return {protocol::CMD_READ_PID, 0, 0, 0, 0, 0, 0, 0};
+absl::StatusOr<std::array<uint8_t, 8>> createReadPidFrame() {
+  return std::array<uint8_t, 8>{protocol::CMD_READ_PID, 0, 0, 0, 0, 0, 0, 0};
 }
 
-std::array<uint8_t, 8> createReadAccelFrame() {
-  return {protocol::CMD_READ_ACCEL, 0, 0, 0, 0, 0, 0, 0};
+absl::StatusOr<std::array<uint8_t, 8>> createReadAccelFrame() {
+  return std::array<uint8_t, 8>{protocol::CMD_READ_ACCEL, 0, 0, 0, 0, 0, 0, 0};
 }
 
-std::array<uint8_t, 8> createReadEncoderFrame() {
-  return {protocol::CMD_READ_ENCODER, 0, 0, 0, 0, 0, 0, 0};
+absl::StatusOr<std::array<uint8_t, 8>> createReadEncoderFrame() {
+  return std::array<uint8_t, 8>{protocol::CMD_READ_ENCODER, 0, 0, 0, 0, 0, 0, 0};
 }
 
-std::array<uint8_t, 8> createReadMultiTurnAngleFrame() {
-  return {protocol::CMD_READ_MULTI_TURN_ANGLE, 0, 0, 0, 0, 0, 0, 0};
+absl::StatusOr<std::array<uint8_t, 8>> createReadMultiTurnAngleFrame() {
+  return std::array<uint8_t, 8>{protocol::CMD_READ_MULTI_TURN_ANGLE, 0, 0, 0, 0, 0, 0, 0};
 }
 
-std::array<uint8_t, 8> createReadSingleCircleAngleFrame() {
-  return {protocol::CMD_READ_SINGLE_CIRCLE_ANGLE, 0, 0, 0, 0, 0, 0, 0};
+absl::StatusOr<std::array<uint8_t, 8>> createReadSingleCircleAngleFrame() {
+  return std::array<uint8_t, 8>{protocol::CMD_READ_SINGLE_CIRCLE_ANGLE, 0, 0, 0, 0, 0, 0, 0};
 }
 
-std::array<uint8_t, 8> createReadStatus1Frame() {
-  return {protocol::CMD_READ_STATUS_1, 0, 0, 0, 0, 0, 0, 0};
+absl::StatusOr<std::array<uint8_t, 8>> createReadStatus1Frame() {
+  return std::array<uint8_t, 8>{protocol::CMD_READ_STATUS_1, 0, 0, 0, 0, 0, 0, 0};
 }
 
-std::array<uint8_t, 8> createReadStatus2Frame() {
-  return {protocol::CMD_READ_STATUS_2, 0, 0, 0, 0, 0, 0, 0};
+absl::StatusOr<std::array<uint8_t, 8>> createReadStatus2Frame() {
+  return std::array<uint8_t, 8>{protocol::CMD_READ_STATUS_2, 0, 0, 0, 0, 0, 0, 0};
 }
 
-std::array<uint8_t, 8> createReadStatus3Frame() {
-  return {protocol::CMD_READ_STATUS_3, 0, 0, 0, 0, 0, 0, 0};
+absl::StatusOr<std::array<uint8_t, 8>> createReadStatus3Frame() {
+  return std::array<uint8_t, 8>{protocol::CMD_READ_STATUS_3, 0, 0, 0, 0, 0, 0, 0};
 }
 
 // --- Write/Action Command Frame ---
-std::array<uint8_t, 8> createWritePidRamFrame(
+absl::StatusOr<std::array<uint8_t, 8>> createWritePidRamFrame(
     const types::PidDataV161& pid_data) {
   std::array<uint8_t, 8> data = {
       protocol::CMD_WRITE_PID_RAM, 0, 0, 0, 0, 0, 0, 0};
@@ -104,7 +105,7 @@ std::array<uint8_t, 8> createWritePidRamFrame(
   return data;
 }
 
-std::array<uint8_t, 8> createWritePidRomFrame(
+absl::StatusOr<std::array<uint8_t, 8>> createWritePidRomFrame(
     const types::PidDataV161& pid_data) {
   std::array<uint8_t, 8> data = {
       protocol::CMD_WRITE_PID_ROM, 0, 0, 0, 0, 0, 0, 0};
@@ -119,102 +120,90 @@ std::array<uint8_t, 8> createWritePidRomFrame(
   return data;
 }
 
-std::array<uint8_t, 8> createWriteAccelRamFrame(
+absl::StatusOr<std::array<uint8_t, 8>> createWriteAccelRamFrame(
     const types::AccelDataV161& accel_data) {
   std::array<uint8_t, 8> data = {
       protocol::CMD_WRITE_ACCEL_RAM, 0, 0, 0, 0, 0, 0, 0};
 
   absl::Status status = packLittleEndian<int32_t>(data, 4, accel_data.acceleration);
   if (!status.ok()) {
-    // Since we can't change the function signature yet (Task 2.2.4),
-    // we'll log the error and continue as if nothing happened
-    // This will be properly handled in Task 2.2.4
-    #ifndef NDEBUG
-    std::cerr << "Error in createWriteAccelRamFrame: " << status.ToString() << std::endl;
-    #endif
+    return status;
   }
 
   return data;
 }
 
-std::array<uint8_t, 8> createWriteEncoderOffsetFrame(uint16_t offset) {
+absl::StatusOr<std::array<uint8_t, 8>> createWriteEncoderOffsetFrame(uint16_t offset) {
   std::array<uint8_t, 8> data = {
       protocol::CMD_WRITE_ENCODER_OFFSET, 0, 0, 0, 0, 0, 0, 0};
   // Assuming offset is packed at index 6 based on parsing function
   absl::Status status = packLittleEndian<uint16_t>(data, 6, offset);
   if (!status.ok()) {
-    #ifndef NDEBUG
-    std::cerr << "Error in createWriteEncoderOffsetFrame: " << status.ToString() << std::endl;
-    #endif
+    return status;
   }
   return data;
 }
 
-std::array<uint8_t, 8> createClearErrorFlagFrame() {
-  return {protocol::CMD_CLEAR_ERROR, 0, 0, 0, 0, 0, 0, 0};
+absl::StatusOr<std::array<uint8_t, 8>> createClearErrorFlagFrame() {
+  return std::array<uint8_t, 8>{protocol::CMD_CLEAR_ERROR, 0, 0, 0, 0, 0, 0, 0};
 }
+
 // Added missing function definition
-std::array<uint8_t, 8> createWritePosAsZeroRomFrame() {
-  return {protocol::CMD_WRITE_POS_AS_ZERO_ROM, 0, 0, 0, 0, 0, 0, 0};
+absl::StatusOr<std::array<uint8_t, 8>> createWritePosAsZeroRomFrame() {
+  return std::array<uint8_t, 8>{protocol::CMD_WRITE_POS_AS_ZERO_ROM, 0, 0, 0, 0, 0, 0, 0};
 }
 
 // --- Control Command Frame ---
-std::array<uint8_t, 8> createMotorOffFrame() {
-  return {protocol::CMD_MOTOR_OFF, 0, 0, 0, 0, 0, 0, 0};
+absl::StatusOr<std::array<uint8_t, 8>> createMotorOffFrame() {
+  return std::array<uint8_t, 8>{protocol::CMD_MOTOR_OFF, 0, 0, 0, 0, 0, 0, 0};
 }
 
-std::array<uint8_t, 8> createMotorStopFrame() {
-  return {protocol::CMD_MOTOR_STOP, 0, 0, 0, 0, 0, 0, 0};
+absl::StatusOr<std::array<uint8_t, 8>> createMotorStopFrame() {
+  return std::array<uint8_t, 8>{protocol::CMD_MOTOR_STOP, 0, 0, 0, 0, 0, 0, 0};
 }
 
-std::array<uint8_t, 8> createMotorRunFrame() {
-  return {protocol::CMD_MOTOR_RUN, 0, 0, 0, 0, 0, 0, 0};
+absl::StatusOr<std::array<uint8_t, 8>> createMotorRunFrame() {
+  return std::array<uint8_t, 8>{protocol::CMD_MOTOR_RUN, 0, 0, 0, 0, 0, 0, 0};
 }
 
-std::array<uint8_t, 8> createTorqueControlFrame(int16_t torque_setpoint) {
+absl::StatusOr<std::array<uint8_t, 8>> createTorqueControlFrame(int16_t torque_setpoint) {
   std::array<uint8_t, 8> data = {
       protocol::CMD_TORQUE_CONTROL, 0, 0, 0, 0, 0, 0, 0};
   // torque control value (int16_t) in bytes 4-5
   absl::Status status = packLittleEndian<int16_t>(data, 4, torque_setpoint);
   if (!status.ok()) {
-    #ifndef NDEBUG
-    std::cerr << "Error in createTorqueControlFrame: " << status.ToString() << std::endl;
-    #endif
+    return status;
   }
 
   return data;
 }
 
-std::array<uint8_t, 8> createSpeedControlFrame(int32_t speed_setpoint) {
+absl::StatusOr<std::array<uint8_t, 8>> createSpeedControlFrame(int32_t speed_setpoint) {
   std::array<uint8_t, 8> data = {
       protocol::CMD_SPEED_CONTROL, 0, 0, 0, 0, 0, 0, 0};
   // speed control value (int32_t) in bytes 4-7
   absl::Status status = packLittleEndian<int32_t>(data, 4, speed_setpoint);
   if (!status.ok()) {
-    #ifndef NDEBUG
-    std::cerr << "Error in createSpeedControlFrame: " << status.ToString() << std::endl;
-    #endif
+    return status;
   }
 
   return data;
 }
 
-std::array<uint8_t, 8> createPositionControl1Frame(int32_t angle_setpoint) {
+absl::StatusOr<std::array<uint8_t, 8>> createPositionControl1Frame(int32_t angle_setpoint) {
   std::array<uint8_t, 8> data = {
       protocol::CMD_POSITION_CONTROL_1, 0, 0, 0, 0, 0, 0, 0};
   // Position control (int32_t) in bytes 4-7
   // Let's follow the byte count: DATA[4] low byte ... DATA[7] high byte
   absl::Status status = packLittleEndian<int32_t>(data, 4, angle_setpoint);
   if (!status.ok()) {
-    #ifndef NDEBUG
-    std::cerr << "Error in createPositionControl1Frame: " << status.ToString() << std::endl;
-    #endif
+    return status;
   }
 
   return data;
 }
 
-std::array<uint8_t, 8> createPositionControl2Frame(
+absl::StatusOr<std::array<uint8_t, 8>> createPositionControl2Frame(
     int32_t angle_setpoint,
     uint16_t max_speed) {  // Add max_speed parameter
   std::array<uint8_t, 8> data = {
@@ -223,22 +212,18 @@ std::array<uint8_t, 8> createPositionControl2Frame(
   // Let's follow the description: speed bytes 2,3; position bytes 4,5,6,7
   absl::Status status = packLittleEndian<uint16_t>(data, 2, max_speed);
   if (!status.ok()) {
-    #ifndef NDEBUG
-    std::cerr << "Error in createPositionControl2Frame: " << status.ToString() << std::endl;
-    #endif
-  } else {
-    status = packLittleEndian<int32_t>(data, 4, angle_setpoint);
-    if (!status.ok()) {
-      #ifndef NDEBUG
-      std::cerr << "Error in createPositionControl2Frame: " << status.ToString() << std::endl;
-      #endif
-    }
+    return status;
+  }
+  
+  status = packLittleEndian<int32_t>(data, 4, angle_setpoint);
+  if (!status.ok()) {
+    return status;
   }
 
   return data;
 }
 
-std::array<uint8_t, 8> createPositionControl3Frame(
+absl::StatusOr<std::array<uint8_t, 8>> createPositionControl3Frame(
     uint16_t angle_setpoint, types::SpinDirection direction) {
   std::array<uint8_t, 8> data = {
       protocol::CMD_POSITION_CONTROL_3, 0, 0, 0, 0, 0, 0, 0};
@@ -246,15 +231,13 @@ std::array<uint8_t, 8> createPositionControl3Frame(
   data[1] = static_cast<uint8_t>(direction);
   absl::Status status = packLittleEndian<uint16_t>(data, 4, angle_setpoint);
   if (!status.ok()) {
-    #ifndef NDEBUG
-    std::cerr << "Error in createPositionControl3Frame: " << status.ToString() << std::endl;
-    #endif
+    return status;
   }
 
   return data;
 }
 
-std::array<uint8_t, 8> createPositionControl4Frame(
+absl::StatusOr<std::array<uint8_t, 8>> createPositionControl4Frame(
     uint16_t angle_setpoint,
     types::SpinDirection direction,
     uint16_t max_speed) {
@@ -266,16 +249,12 @@ std::array<uint8_t, 8> createPositionControl4Frame(
   
   absl::Status status = packLittleEndian<uint16_t>(data, 2, max_speed);
   if (!status.ok()) {
-    #ifndef NDEBUG
-    std::cerr << "Error in createPositionControl4Frame: " << status.ToString() << std::endl;
-    #endif
-  } else {
-    status = packLittleEndian<uint16_t>(data, 4, angle_setpoint);
-    if (!status.ok()) {
-      #ifndef NDEBUG
-      std::cerr << "Error in createPositionControl4Frame: " << status.ToString() << std::endl;
-      #endif
-    }
+    return status;
+  }
+  
+  status = packLittleEndian<uint16_t>(data, 4, angle_setpoint);
+  if (!status.ok()) {
+    return status;
   }
 
   return data;
