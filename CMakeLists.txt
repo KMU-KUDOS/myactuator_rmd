@@ -4,6 +4,7 @@ project(myactuator_rmd VERSION 0.0.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 include(FetchContent)
 enable_testing()
@@ -23,7 +24,21 @@ FetchContent_Declare(
 )
 # For Windows: Prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
+
+# Abseil Integration
+FetchContent_Declare(
+  abseil
+  GIT_REPOSITORY https://github.com/abseil/abseil-cpp.git
+  GIT_TAG        20230125.3  # 안정적인 버전을 위해 특정 태그 사용
+)
+
+# Position Independent Code 활성화
+set(ABSL_BUILD_TESTING OFF CACHE BOOL "Disable abseil tests")
+set(ABSL_USE_SYSTEM_INCLUDES ON CACHE BOOL "Use system includes" FORCE)
+set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "Propagate C++ standard to dependencies" FORCE)
+
+# Make all fetched content available
+FetchContent_MakeAvailable(googletest abseil)
 
 # --- Build the myactuator_rmd shared library ---
 add_library(myactuator_rmd SHARED
@@ -50,9 +65,12 @@ target_include_directories(myactuator_rmd PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
-# Link with pthread for Linux SocketCAN
+# Link with pthread for Linux SocketCAN and abseil libraries
 target_link_libraries(myactuator_rmd PUBLIC
     Threads::Threads
+    absl::status
+    absl::statusor
+    absl::strings
 )
 
 # --- Build v161_example executable ---
