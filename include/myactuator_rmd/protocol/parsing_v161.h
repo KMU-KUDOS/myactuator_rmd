@@ -8,13 +8,22 @@
 #include <cstdint>
 #include <cstring>
 
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "myactuator_rmd/protocol/types_v161.h"
 
 namespace v161_motor_control::parsing {
 
 // --- Helper function for unpacking data (Little Endian)
+/**
+ * @brief Unpack a value in little-endian format from a byte array
+ * @tparam T Type of the value to unpack (typically an integer type)
+ * @param data Byte array to unpack the value from
+ * @param index Starting index in the array where the value is stored
+ * @return StatusOr containing the unpacked value or an error status
+ */
 template <typename T>
-T unpackLittleEndian(const std::array<uint8_t, 8>& data, size_t index);
+absl::StatusOr<T> unpackLittleEndian(const std::array<uint8_t, 8>& data, size_t index);
 
 // --- Read Command Response Parsing Function Declaration
 types::PidDataV161 parseReadPidResponse(const std::array<uint8_t, 8>& data);

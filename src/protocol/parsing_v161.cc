@@ -5,17 +5,20 @@
 #include <cstdint>
 #include <cstring>  // for memcpy
 
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "myactuator_rmd/protocol/protocol_v161.h"  // Command code
 
 namespace v161_motor_control::parsing {
 
 // --- Helper function implementation
 template <typename T>
-T unpackLittleEndian(const std::array<uint8_t, 8>& data, size_t index) {
+absl::StatusOr<T> unpackLittleEndian(const std::array<uint8_t, 8>& data, size_t index) {
   if (index + sizeof(T) > data.size()) {
-    throw std::out_of_range(
-        "Parsing index out of range. Index: " + std::to_string(index) +
-        ", Size: " + std::to_string(sizeof(T)));
+    return absl::OutOfRangeError(
+        absl::StrCat("Parsing index out of range. Index: ", index,
+                    ", Size: ", sizeof(T), ", Array size: ", data.size()));
   }
   T value{};
   // Assumes the system executing this code is Little Endian
@@ -24,21 +27,21 @@ T unpackLittleEndian(const std::array<uint8_t, 8>& data, size_t index) {
 }
 
 // Explicit template instantiation (optional)
-template int8_t unpackLittleEndian<int8_t>(const std::array<uint8_t, 8>& data,
+template absl::StatusOr<int8_t> unpackLittleEndian<int8_t>(const std::array<uint8_t, 8>& data,
                                            size_t index);
-template uint8_t unpackLittleEndian<uint8_t>(const std::array<uint8_t, 8>& data,
+template absl::StatusOr<uint8_t> unpackLittleEndian<uint8_t>(const std::array<uint8_t, 8>& data,
                                              size_t index);
-template int16_t unpackLittleEndian<int16_t>(const std::array<uint8_t, 8>& data,
+template absl::StatusOr<int16_t> unpackLittleEndian<int16_t>(const std::array<uint8_t, 8>& data,
                                              size_t index);
-template uint16_t unpackLittleEndian<uint16_t>(
+template absl::StatusOr<uint16_t> unpackLittleEndian<uint16_t>(
     const std::array<uint8_t, 8>& data, size_t index);
-template int32_t unpackLittleEndian<int32_t>(const std::array<uint8_t, 8>& data,
+template absl::StatusOr<int32_t> unpackLittleEndian<int32_t>(const std::array<uint8_t, 8>& data,
                                              size_t index);
-template uint32_t unpackLittleEndian<uint32_t>(
+template absl::StatusOr<uint32_t> unpackLittleEndian<uint32_t>(
     const std::array<uint8_t, 8>& data, size_t index);
-template int64_t unpackLittleEndian<int64_t>(const std::array<uint8_t, 8>& data,
+template absl::StatusOr<int64_t> unpackLittleEndian<int64_t>(const std::array<uint8_t, 8>& data,
                                              size_t index);
-template uint64_t unpackLittleEndian<uint64_t>(
+template absl::StatusOr<uint64_t> unpackLittleEndian<uint64_t>(
     const std::array<uint8_t, 8>& data, size_t index);
 
 // --- Read Command Response Parsing Function Implementation ---
@@ -65,7 +68,12 @@ types::AccelDataV161 parseReadAccelResponse(
   }
   types::AccelDataV161 result;
 
-  result.acceleration = unpackLittleEndian<int32_t>(data, 4);
+  auto acceleration = unpackLittleEndian<int32_t>(data, 4);
+  if (!acceleration.ok()) {
+    throw std::runtime_error(absl::StrCat("Failed to parse acceleration: ", 
+                                         acceleration.status().message()));
+  }
+  result.acceleration = *acceleration;
 
   return result;
 }
@@ -77,9 +85,26 @@ types::EncoderDataV161 parseReadEncoderResponse(
   }
   types::EncoderDataV161 result;
 
-  result.position = unpackLittleEndian<uint16_t>(data, 2);
-  result.raw_position = unpackLittleEndian<uint16_t>(data, 4);
-  result.offset = unpackLittleEndian<uint16_t>(data, 6);
+  auto position = unpackLittleEndian<uint16_t>(data, 2);
+  if (!position.ok()) {
+    throw std::runtime_error(absl::StrCat("Failed to parse position: ", 
+                                         position.status().message()));
+  }
+  result.position = *position;
+  
+  auto raw_position = unpackLittleEndian<uint16_t>(data, 4);
+  if (!raw_position.ok()) {
+    throw std::runtime_error(absl::StrCat("Failed to parse raw_position: ", 
+                                          raw_position.status().message()));
+  }
+  result.raw_position = *raw_position;
+  
+  auto offset = unpackLittleEndian<uint16_t>(data, 6);
+  if (!offset.ok()) {
+    throw std::runtime_error(absl::StrCat("Failed to parse offset: ", 
+                                          offset.status().message()));
+  }
+  result.offset = *offset;
 
   return result;
 }
@@ -125,8 +150,20 @@ types::Status1DataV161 parseReadStatus1Response(
   }
   types::Status1DataV161 result;
 
-  result.temperature = unpackLittleEndian<int8_t>(data, 1);
-  result.voltage = unpackLittleEndian<uint16_t>(data, 3);
+  auto temperature = unpackLittleEndian<int8_t>(data, 1);
+  if (!temperature.ok()) {
+    throw std::runtime_error(absl::StrCat("Failed to parse temperature: ", 
+                                         temperature.status().message()));
+  }
+  result.temperature = *temperature;
+  
+  auto voltage = unpackLittleEndian<uint16_t>(data, 3);
+  if (!voltage.ok()) {
+    throw std::runtime_error(absl::StrCat("Failed to parse voltage: ", 
+                                          voltage.status().message()));
+  }
+  result.voltage = *voltage;
+  
   result.error_state_raw = data[7];
 
   return result;
@@ -139,10 +176,33 @@ types::Status2DataV161 parseReadStatus2Response(
   }
   types::Status2DataV161 result;
 
-  result.temperature = unpackLittleEndian<int8_t>(data, 1);
-  result.torque_current = unpackLittleEndian<int16_t>(data, 2);
-  result.speed = unpackLittleEndian<int16_t>(data, 4);
-  result.encoder_position = unpackLittleEndian<uint16_t>(data, 6);
+  auto temperature = unpackLittleEndian<int8_t>(data, 1);
+  if (!temperature.ok()) {
+    throw std::runtime_error(absl::StrCat("Failed to parse temperature: ", 
+                                         temperature.status().message()));
+  }
+  result.temperature = *temperature;
+  
+  auto torque_current = unpackLittleEndian<int16_t>(data, 2);
+  if (!torque_current.ok()) {
+    throw std::runtime_error(absl::StrCat("Failed to parse torque_current: ", 
+                                         torque_current.status().message()));
+  }
+  result.torque_current = *torque_current;
+  
+  auto speed = unpackLittleEndian<int16_t>(data, 4);
+  if (!speed.ok()) {
+    throw std::runtime_error(absl::StrCat("Failed to parse speed: ", 
+                                         speed.status().message()));
+  }
+  result.speed = *speed;
+  
+  auto encoder_position = unpackLittleEndian<uint16_t>(data, 6);
+  if (!encoder_position.ok()) {
+    throw std::runtime_error(absl::StrCat("Failed to parse encoder_position: ", 
+                                         encoder_position.status().message()));
+  }
+  result.encoder_position = *encoder_position;
 
   return result;
 }
@@ -207,10 +267,33 @@ types::Status2DataV161 parseClosedLoopResponse(
   }
   types::Status2DataV161 result;
 
-  result.temperature = unpackLittleEndian<int8_t>(data, 1);
-  result.torque_current = unpackLittleEndian<int16_t>(data, 2);
-  result.speed = unpackLittleEndian<int16_t>(data, 4);
-  result.encoder_position = unpackLittleEndian<uint32_t>(data, 6);
+  auto temperature = unpackLittleEndian<int8_t>(data, 1);
+  if (!temperature.ok()) {
+    throw std::runtime_error(absl::StrCat("Failed to parse temperature: ", 
+                                         temperature.status().message()));
+  }
+  result.temperature = *temperature;
+  
+  auto torque_current = unpackLittleEndian<int16_t>(data, 2);
+  if (!torque_current.ok()) {
+    throw std::runtime_error(absl::StrCat("Failed to parse torque_current: ", 
+                                         torque_current.status().message()));
+  }
+  result.torque_current = *torque_current;
+  
+  auto speed = unpackLittleEndian<int16_t>(data, 4);
+  if (!speed.ok()) {
+    throw std::runtime_error(absl::StrCat("Failed to parse speed: ", 
+                                         speed.status().message()));
+  }
+  result.speed = *speed;
+  
+  auto encoder_position = unpackLittleEndian<uint32_t>(data, 6);
+  if (!encoder_position.ok()) {
+    throw std::runtime_error(absl::StrCat("Failed to parse encoder_position: ", 
+                                         encoder_position.status().message()));
+  }
+  result.encoder_position = *encoder_position;
 
   return result;
 }
