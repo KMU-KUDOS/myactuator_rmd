@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <cstring>  // for memcpy
 
+#include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "myactuator_rmd/protocol/protocol_v161.h"  // Command code
 
 namespace v161_motor_control::packing {
@@ -12,41 +14,44 @@ namespace v161_motor_control::packing {
 // Template implementation for packing (needs to be visible, often put in header
 // or inline)
 template <typename T>
-void packLittleEndian(std::array<uint8_t, 8>& data, size_t index, T value) {
+absl::Status packLittleEndian(std::array<uint8_t, 8>& data, size_t index, T value) {
   if (index + sizeof(T) > data.size()) {
-    throw std::out_of_range("Packing index out of range");
+    return absl::OutOfRangeError(
+        absl::StrCat("Packing index out of range. Index: ", index,
+                    ", Size: ", sizeof(T), ", Array size: ", data.size()));
   }
   // Assumes the system executing this code is also Little Endian
   // If system architecture differs from CAN bus endianness, byte swapping is
   // needed For PC(x86, x64) which are Little Endian, direct memcpy is usually
   // correct for Little Endian CAN data
   memcpy(&data[index], &value, sizeof(T));
+  return absl::OkStatus();
 }
 
 // Explicit template instantiation (optional, helps with compile
 // times/organization)
-template void packLittleEndian<int8_t>(std::array<uint8_t, 8>& data,
+template absl::Status packLittleEndian<int8_t>(std::array<uint8_t, 8>& data,
                                        size_t index,
                                        int8_t value);
-template void packLittleEndian<uint8_t>(std::array<uint8_t, 8>& data,
+template absl::Status packLittleEndian<uint8_t>(std::array<uint8_t, 8>& data,
                                         size_t index,
                                         uint8_t value);
-template void packLittleEndian<int16_t>(std::array<uint8_t, 8>& data,
+template absl::Status packLittleEndian<int16_t>(std::array<uint8_t, 8>& data,
                                         size_t index,
                                         int16_t value);
-template void packLittleEndian<uint16_t>(std::array<uint8_t, 8>& data,
+template absl::Status packLittleEndian<uint16_t>(std::array<uint8_t, 8>& data,
                                          size_t index,
                                          uint16_t value);
-template void packLittleEndian<int32_t>(std::array<uint8_t, 8>& data,
+template absl::Status packLittleEndian<int32_t>(std::array<uint8_t, 8>& data,
                                         size_t index,
                                         int32_t value);
-template void packLittleEndian<uint32_t>(std::array<uint8_t, 8>& data,
+template absl::Status packLittleEndian<uint32_t>(std::array<uint8_t, 8>& data,
                                          size_t index,
                                          uint32_t value);
-template void packLittleEndian<int64_t>(std::array<uint8_t, 8>& data,
+template absl::Status packLittleEndian<int64_t>(std::array<uint8_t, 8>& data,
                                         size_t index,
                                         int64_t value);
-template void packLittleEndian<uint64_t>(std::array<uint8_t, 8>& data,
+template absl::Status packLittleEndian<uint64_t>(std::array<uint8_t, 8>& data,
                                          size_t index,
                                          uint64_t value);
 
@@ -119,7 +124,15 @@ std::array<uint8_t, 8> createWriteAccelRamFrame(
   std::array<uint8_t, 8> data = {
       protocol::CMD_WRITE_ACCEL_RAM, 0, 0, 0, 0, 0, 0, 0};
 
-  packLittleEndian<int32_t>(data, 4, accel_data.acceleration);
+  absl::Status status = packLittleEndian<int32_t>(data, 4, accel_data.acceleration);
+  if (!status.ok()) {
+    // Since we can't change the function signature yet (Task 2.2.4),
+    // we'll log the error and continue as if nothing happened
+    // This will be properly handled in Task 2.2.4
+    #ifndef NDEBUG
+    std::cerr << "Error in createWriteAccelRamFrame: " << status.ToString() << std::endl;
+    #endif
+  }
 
   return data;
 }
@@ -128,7 +141,12 @@ std::array<uint8_t, 8> createWriteEncoderOffsetFrame(uint16_t offset) {
   std::array<uint8_t, 8> data = {
       protocol::CMD_WRITE_ENCODER_OFFSET, 0, 0, 0, 0, 0, 0, 0};
   // Assuming offset is packed at index 6 based on parsing function
-  packLittleEndian<uint16_t>(data, 6, offset);
+  absl::Status status = packLittleEndian<uint16_t>(data, 6, offset);
+  if (!status.ok()) {
+    #ifndef NDEBUG
+    std::cerr << "Error in createWriteEncoderOffsetFrame: " << status.ToString() << std::endl;
+    #endif
+  }
   return data;
 }
 
@@ -157,7 +175,12 @@ std::array<uint8_t, 8> createTorqueControlFrame(int16_t torque_setpoint) {
   std::array<uint8_t, 8> data = {
       protocol::CMD_TORQUE_CONTROL, 0, 0, 0, 0, 0, 0, 0};
   // torque control value (int16_t) in bytes 4-5
-  packLittleEndian<int16_t>(data, 4, torque_setpoint);
+  absl::Status status = packLittleEndian<int16_t>(data, 4, torque_setpoint);
+  if (!status.ok()) {
+    #ifndef NDEBUG
+    std::cerr << "Error in createTorqueControlFrame: " << status.ToString() << std::endl;
+    #endif
+  }
 
   return data;
 }
@@ -166,7 +189,12 @@ std::array<uint8_t, 8> createSpeedControlFrame(int32_t speed_setpoint) {
   std::array<uint8_t, 8> data = {
       protocol::CMD_SPEED_CONTROL, 0, 0, 0, 0, 0, 0, 0};
   // speed control value (int32_t) in bytes 4-7
-  packLittleEndian<int32_t>(data, 4, speed_setpoint);
+  absl::Status status = packLittleEndian<int32_t>(data, 4, speed_setpoint);
+  if (!status.ok()) {
+    #ifndef NDEBUG
+    std::cerr << "Error in createSpeedControlFrame: " << status.ToString() << std::endl;
+    #endif
+  }
 
   return data;
 }
@@ -176,7 +204,12 @@ std::array<uint8_t, 8> createPositionControl1Frame(int32_t angle_setpoint) {
       protocol::CMD_POSITION_CONTROL_1, 0, 0, 0, 0, 0, 0, 0};
   // Position control (int32_t) in bytes 4-7
   // Let's follow the byte count: DATA[4] low byte ... DATA[7] high byte
-  packLittleEndian<int32_t>(data, 4, angle_setpoint);
+  absl::Status status = packLittleEndian<int32_t>(data, 4, angle_setpoint);
+  if (!status.ok()) {
+    #ifndef NDEBUG
+    std::cerr << "Error in createPositionControl1Frame: " << status.ToString() << std::endl;
+    #endif
+  }
 
   return data;
 }
@@ -188,8 +221,19 @@ std::array<uint8_t, 8> createPositionControl2Frame(
       protocol::CMD_POSITION_CONTROL_2, 0, 0, 0, 0, 0, 0, 0};
   // speed limit (uint16_t) in bytes 2-3, position (int32_t) in bytes 4-7
   // Let's follow the description: speed bytes 2,3; position bytes 4,5,6,7
-  packLittleEndian<uint16_t>(data, 2, max_speed);
-  packLittleEndian<int32_t>(data, 4, angle_setpoint);
+  absl::Status status = packLittleEndian<uint16_t>(data, 2, max_speed);
+  if (!status.ok()) {
+    #ifndef NDEBUG
+    std::cerr << "Error in createPositionControl2Frame: " << status.ToString() << std::endl;
+    #endif
+  } else {
+    status = packLittleEndian<int32_t>(data, 4, angle_setpoint);
+    if (!status.ok()) {
+      #ifndef NDEBUG
+      std::cerr << "Error in createPositionControl2Frame: " << status.ToString() << std::endl;
+      #endif
+    }
+  }
 
   return data;
 }
@@ -200,7 +244,12 @@ std::array<uint8_t, 8> createPositionControl3Frame(
       protocol::CMD_POSITION_CONTROL_3, 0, 0, 0, 0, 0, 0, 0};
   // Spin Direction (uint8_t) in byte 1, position (uint16_t) in bytes 4-5
   data[1] = static_cast<uint8_t>(direction);
-  packLittleEndian<uint16_t>(data, 4, angle_setpoint);
+  absl::Status status = packLittleEndian<uint16_t>(data, 4, angle_setpoint);
+  if (!status.ok()) {
+    #ifndef NDEBUG
+    std::cerr << "Error in createPositionControl3Frame: " << status.ToString() << std::endl;
+    #endif
+  }
 
   return data;
 }
@@ -214,8 +263,20 @@ std::array<uint8_t, 8> createPositionControl4Frame(
   // Spin Direction (uint8_t) in byte 1, speed limit (uint16_t) in bytes 2-3,
   // position (uint16_t) in bytes 4-5
   data[1] = static_cast<uint8_t>(direction);
-  packLittleEndian<uint16_t>(data, 2, max_speed);
-  packLittleEndian<uint16_t>(data, 4, angle_setpoint);
+  
+  absl::Status status = packLittleEndian<uint16_t>(data, 2, max_speed);
+  if (!status.ok()) {
+    #ifndef NDEBUG
+    std::cerr << "Error in createPositionControl4Frame: " << status.ToString() << std::endl;
+    #endif
+  } else {
+    status = packLittleEndian<uint16_t>(data, 4, angle_setpoint);
+    if (!status.ok()) {
+      #ifndef NDEBUG
+      std::cerr << "Error in createPositionControl4Frame: " << status.ToString() << std::endl;
+      #endif
+    }
+  }
 
   return data;
 }

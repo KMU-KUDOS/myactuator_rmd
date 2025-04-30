@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cstring>
 
+#include "absl/status/status.h"
 #include "myactuator_rmd/protocol/types_v161.h"
 
 namespace v161_motor_control::packing {
@@ -90,8 +91,16 @@ std::array<uint8_t, 8> createPositionControl4Frame(
     uint16_t max_speed);
 
 // --- Helper function for packing data (will be used more in Write command) ---
+/**
+ * @brief Pack a value in little-endian format into a byte array
+ * @tparam T Type of the value to pack (typically an integer type)
+ * @param data Byte array to pack the value into
+ * @param index Starting index in the array where to place the value
+ * @param value The value to pack
+ * @return Status indicating success or the reason for failure
+ */
 template <typename T>
-void packLittleEndian(std::array<uint8_t, 8>& data, size_t index, T value);
+absl::Status packLittleEndian(std::array<uint8_t, 8>& data, size_t index, T value);
 
 }  // namespace v161_motor_control::packing
 
