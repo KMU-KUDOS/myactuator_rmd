@@ -13,41 +13,63 @@
 
 namespace v161_motor_control {
 
-// 타입 정의가 없는 경우 여기서 정의
+/**
+ * @brief 모터 제어 응답 데이터 타입 정의
+ * 
+ * 이 네임스페이스는 모터 제어 명령의 응답으로 반환되는 데이터 구조체들을 정의합니다.
+ */
 namespace types {
-  // 토크 제어 응답 데이터
+  /**
+   * @brief 토크 제어 응답 데이터 구조체 (명령 코드: 0xA1)
+   * 
+   * 토크 제어 명령(setTorque)의 응답으로 수신되는 데이터를 담는 구조체입니다.
+   */
   struct TorqueResponseV161 {
-    int16_t torque_current = 0;    // 토크 전류값
-    int16_t speed = 0;             // 현재 속도
-    uint16_t encoder_position = 0;  // 현재 엔코더 위치
+    int16_t torque_current = 0;     ///< 현재 토크 전류값 (범위: -2048~2048, -33A~33A에 매핑됨)
+    int16_t speed = 0;              ///< 현재 모터 속도 (단위: 1dps/LSB, 초당 회전 각도)
+    uint16_t encoder_position = 0;  ///< 현재 엔코더 위치 (범위: 0~16383)
   };
 
-  // 속도 제어 응답 데이터
+  /**
+   * @brief 속도 제어 응답 데이터 구조체 (명령 코드: 0xA2)
+   * 
+   * 속도 제어 명령(setSpeed)의 응답으로 수신되는 데이터를 담는 구조체입니다.
+   */
   struct SpeedResponseV161 {
-    int16_t speed = 0;             // 현재 속도
-    int16_t torque_current = 0;    // 토크 전류값
-    uint16_t encoder_position = 0;  // 현재 엔코더 위치
+    int16_t speed = 0;              ///< 현재 모터 속도 (단위: 1dps/LSB, 초당 회전 각도)
+    int16_t torque_current = 0;     ///< 현재 토크 전류값 (범위: -2048~2048, -33A~33A에 매핑됨)
+    uint16_t encoder_position = 0;  ///< 현재 엔코더 위치 (범위: 0~16383)
   };
 
-  // 위치 제어 응답 데이터
+  /**
+   * @brief 위치 제어 응답 데이터 구조체 (명령 코드: 0xA3, 0xA4, 0xA5, 0xA6)
+   * 
+   * 위치 제어 명령(setAbsolutePosition, setPositionAbsolute, setPositionRelative)의
+   * 응답으로 수신되는 데이터를 담는 구조체입니다.
+   */
   struct PositionResponseV161 {
-    uint16_t encoder_position = 0;  // 현재 엔코더 위치
-    int16_t speed = 0;             // 현재 속도
-    int16_t torque_current = 0;    // 토크 전류값
+    uint16_t encoder_position = 0;  ///< 현재 엔코더 위치 (범위: 0~16383)
+    int16_t speed = 0;              ///< 현재 모터 속도 (단위: 1dps/LSB, 초당 회전 각도)
+    int16_t torque_current = 0;     ///< 현재 토크 전류값 (범위: -2048~2048, -33A~33A에 매핑됨)
   };
 }
 
 /**
  * @brief 모터 제어 작업을 담당하는 클래스
  * 
- * 모터 전원 제어, 토크 제어, 속도 제어, 위치 제어 등 모터 작동 관련 기능을 담당함
+ * MyActuator RMD 시리즈 모터의 제어 관련 기능을 담당하는 클래스입니다.
+ * 모터 전원 제어, 토크 제어, 속도 제어, 위치 제어 등 모터를 직접 
+ * 움직이고 작동시키는 명령들을 제공합니다.
+ * 
+ * MotorV161 클래스의 getActuator() 메서드를 통해 인스턴스를 얻을 수 있습니다.
  */
 class MotorActuator {
  public:
   /**
-   * @brief 생성자
-   * @param can_interface CAN 인터페이스 객체
-   * @param motor_id 대상 모터 ID (1-32)
+   * @brief MotorActuator 클래스의 생성자
+   * 
+   * @param can_interface CAN 통신을 위한 인터페이스 객체
+   * @param motor_id 대상 모터 ID (유효 범위: 1-32)
    */
   MotorActuator(std::shared_ptr<CanInterface> can_interface, uint8_t motor_id);
   
@@ -57,26 +79,52 @@ class MotorActuator {
   ~MotorActuator();
   
   /**
-   * @brief (0x88): 모터의 정지 명령 실행
-   * @return 성공 시 OkStatus, 실패 시 에러 Status
+   * @brief 모터 정지 명령 실행 (명령 코드: 0x81)
+   * 
+   * 모터를 현재 위치에서 정지시킵니다. 제어 루프는 계속 활성화되어 있기 때문에
+   * 토크는 유지됩니다.
+   * 
+   * @return 성공 또는 실패를 나타내는 Status
+   * @retval absl::OkStatus() 성공적으로 모터가 정지됨
+   * @retval absl::UnavailableError CAN 통신 오류
+   * @retval absl::InternalError 내부 처리 오류
    */
   absl::Status stopMotor();
   
   /**
-   * @brief (0x80): 모터 제어 시작 명령 실행
-   * @return 성공 시 OkStatus, 실패 시 에러 Status
+   * @brief 모터 구동 명령 실행 (명령 코드: 0x88)
+   * 
+   * 모터를 구동 상태로 만듭니다. 이전에 설정된 제어 모드에 따라 동작합니다.
+   * 모터가 정지 상태일 때 다시 구동을 시작하려면 이 명령을 사용합니다.
+   * 
+   * @return 성공 또는 실패를 나타내는 Status
+   * @retval absl::OkStatus() 성공적으로 모터가 구동됨
+   * @retval absl::UnavailableError CAN 통신 오류
+   * @retval absl::InternalError 내부 처리 오류
    */
   absl::Status runMotor();
   
   /**
-   * @brief (0x81): 모터 전원 끄기 명령 실행
-   * @return 성공 시 OkStatus, 실패 시 에러 Status
+   * @brief 모터 전원 끄기 명령 실행 (명령 코드: 0x80)
+   * 
+   * 모터의 토크를 끄고 자유 회전 상태로 만듭니다. 제어 루프도 비활성화됩니다.
+   * 
+   * @return 성공 또는 실패를 나타내는 Status
+   * @retval absl::OkStatus() 성공적으로 모터 전원이 꺼짐
+   * @retval absl::UnavailableError CAN 통신 오류
+   * @retval absl::InternalError 내부 처리 오류
    */
   absl::Status powerOffMotor();
   
   /**
-   * @brief (0x76): 모터 오류 플래그 초기화
-   * @return 성공 시 Status1DataV161 데이터, 실패 시 에러 Status
+   * @brief 모터 오류 플래그 초기화 명령 실행 (명령 코드: 0x9B)
+   * 
+   * 모터에 발생한 오류 플래그를 초기화합니다. 초기화 후에는 모터가 정상 동작할 수 있습니다.
+   * 
+   * @return 오류 초기화 후 모터 상태 1 데이터를 포함하는 StatusOr 객체 또는 오류 상태
+   * @retval absl::StatusOr<types::Status1DataV161> 성공 시 모터 상태 1 데이터 포함
+   * @retval absl::UnavailableError CAN 통신 오류
+   * @retval absl::InternalError 내부 처리 오류
    */
   absl::StatusOr<types::Status1DataV161> resetMotorError();
   
@@ -120,6 +168,25 @@ class MotorActuator {
    */
   absl::StatusOr<types::PositionResponseV161> setPositionRelative(
       int32_t position_increment, uint16_t max_speed);
+  
+  /**
+   * @brief (0xA5): 단일 회전 각도 제어 모드 (방향 지정)
+   * @param angle_setpoint 목표 각도(0.01도 단위, 0-35999)
+   * @param direction 회전 방향(SpinDirection::CLOCKWISE 또는 SpinDirection::COUNTERCLOCKWISE)
+   * @return 성공 시 Status2DataV161 데이터, 실패 시 에러 Status
+   */
+  absl::StatusOr<types::Status2DataV161> setPositionControlWithDirection(
+      uint16_t angle_setpoint, types::SpinDirection direction);
+  
+  /**
+   * @brief (0xA6): 단일 회전 각도 제어 모드 (방향 및 최대 속도 지정)
+   * @param angle_setpoint 목표 각도(0.01도 단위, 0-35999)
+   * @param direction 회전 방향(SpinDirection::CLOCKWISE 또는 SpinDirection::COUNTERCLOCKWISE)
+   * @param max_speed 최대 속도(0.01rpm 단위, >=0)
+   * @return 성공 시 Status2DataV161 데이터, 실패 시 에러 Status
+   */
+  absl::StatusOr<types::Status2DataV161> setPositionControlWithDirectionAndSpeed(
+      uint16_t angle_setpoint, types::SpinDirection direction, uint16_t max_speed);
   
  private:
   std::shared_ptr<CanInterface> can_interface_;

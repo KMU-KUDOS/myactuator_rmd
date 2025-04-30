@@ -8,6 +8,8 @@
 #include "myactuator_rmd/can_interface.h"
 #include "myactuator_rmd/protocol/types_v161.h"
 #include "myactuator_rmd/protocol/protocol_v161.h"
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 
 namespace v161_motor_control {
 
@@ -32,52 +34,51 @@ class MotorStatusQuerier {
   
   /**
    * @brief (0x90): 모터의 현재 엔코더 값 읽기
-   * @param encoder_data_out [출력] 엔코더 데이터 정보
-   * @return 성공 시 true, 실패 시 false
+   * @return 성공 시 엔코더 데이터 정보를 담은 StatusOr 객체, 실패 시 오류 상태
    */
-  bool readEncoderData(types::EncoderDataV161& encoder_data_out);
+  absl::StatusOr<types::EncoderDataV161> readEncoderData();
   
   /**
    * @brief (0x92): 멀티턴 각도 정보 읽기
-   * @param angle_data_out [출력] 각도 정보
-   * @return 성공 시 true, 실패 시 false
+   * @return 성공 시 각도 정보를 담은 StatusOr 객체, 실패 시 오류 상태
    */
-  bool readMultiTurnAngle(types::MultiTurnAngleV161& angle_data_out);
+  absl::StatusOr<types::MultiTurnAngleV161> readMultiTurnAngle();
   
   /**
    * @brief (0x9A): 모터의 현재 상태 정보 읽기
-   * @param status_data_out [출력] 상태 정보 (온도, 전압, 오류 플래그 등)
-   * @return 성공 시 true, 실패 시 false
+   * @return 성공 시 상태 정보(온도, 전압, 오류 플래그 등)를 담은 StatusOr 객체, 실패 시 오류 상태
    */
-  bool readMotorStatus1(types::Status1DataV161& status_data_out);
+  absl::StatusOr<types::Status1DataV161> readMotorStatus1();
   
   /**
    * @brief (0x9C): 모터의 현재 상태 정보 2 읽기
-   * @param status_data_out [출력] 상태 정보 (온도, 토크 전류, 속도, 엔코더 위치)
-   * @return 성공 시 true, 실패 시 false
+   * @return 성공 시 상태 정보(온도, 토크 전류, 속도, 엔코더 위치)를 담은 StatusOr 객체, 실패 시 오류 상태
    */
-  bool readMotorStatus2(types::Status2DataV161& status_data_out);
+  absl::StatusOr<types::Status2DataV161> readMotorStatus2();
   
   /**
    * @brief (0x9D): 모터의 전류 값 읽기
-   * @param status_data_out [출력] 전류 정보 (A, B, C 상)
-   * @return 성공 시 true, 실패 시 false
+   * @return 성공 시 전류 정보(A, B, C 상)를 담은 StatusOr 객체, 실패 시 오류 상태
    */
-  bool readMotorStatus3(types::Status3DataV161& status_data_out);
+  absl::StatusOr<types::Status3DataV161> readMotorStatus3();
   
   /**
    * @brief (0x30): 모터의 현재 PID 파라미터 값 읽기
-   * @param pid_data_out [출력] PID 파라미터 정보
-   * @return 성공 시 true, 실패 시 false
+   * @return 성공 시 PID 파라미터 정보를 담은 StatusOr 객체, 실패 시 오류 상태
    */
-  bool readPidData(types::PidDataV161& pid_data_out);
+  absl::StatusOr<types::PidDataV161> readPidData();
   
   /**
    * @brief (0x33): 모터의 현재 가속도 값 읽기
-   * @param accel_data_out [출력] 가속도 정보
-   * @return 성공 시 true, 실패 시 false
+   * @return 성공 시 가속도 정보를 담은 StatusOr 객체, 실패 시 오류 상태
    */
-  bool readAccelerationData(types::AccelDataV161& accel_data_out);
+  absl::StatusOr<types::AccelDataV161> readAccelerationData();
+  
+  /**
+   * @brief (0x94): 단일 회전 각도 정보 읽기
+   * @return 성공 시 단일 회전 각도 정보를 담은 StatusOr 객체, 실패 시 오류 상태
+   */
+  absl::StatusOr<types::SingleCircleAngleV161> readSingleCircleAngle();
   
  private:
   std::shared_ptr<CanInterface> can_interface_;
@@ -89,14 +90,13 @@ class MotorStatusQuerier {
    * @brief 명령을 전송하고 응답을 받는 헬퍼 메서드
    * @param command_data 전송할 명령 데이터
    * @param expected_response_cmd_code 예상되는 응답 명령 코드
-   * @param response_data_out [출력] 받은 응답 데이터
    * @param retry_count 재시도 횟수
-   * @return 성공 시 true, 실패 시 false
+   * @return 성공 시 응답 데이터를 담은 StatusOr 객체, 실패 시 적절한 오류 상태를 담은 StatusOr 객체
    */
-  bool sendCommandAndGetResponse(const std::array<uint8_t, 8>& command_data,
-                                uint8_t expected_response_cmd_code,
-                                std::array<uint8_t, 8>& response_data_out,
-                                int retry_count = 0);
+  absl::StatusOr<std::array<uint8_t, 8>> sendCommandAndGetResponse(
+      const std::array<uint8_t, 8>& command_data,
+      uint8_t expected_response_cmd_code,
+      int retry_count = 0);
 };
 
 }  // namespace v161_motor_control

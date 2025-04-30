@@ -12,6 +12,7 @@
 #include "myactuator_rmd/protocol/motor_actuator.h"
 #include "myactuator_rmd/protocol/motor_status_querier.h"
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 
 namespace v161_motor_control {
 
@@ -32,49 +33,49 @@ class MotorV161 {
    * @brief (0x30): Read to Parameter
    * @return
    */
-  types::PidDataV161 readPid();
+  absl::StatusOr<types::PidDataV161> readPid();
 
   /**
    * @brief (0x33): Read to Accel
    * @return
    */
-  types::AccelDataV161 readAcceleration();
+  absl::StatusOr<types::AccelDataV161> readAcceleration();
 
   /**
    * @brief (0x90): Read to Encoder data
    * @return
    */
-  types::EncoderDataV161 readEncoder();
+  absl::StatusOr<types::EncoderDataV161> readEncoder();
 
   /**
    * @brief (0x92): Read to MultiTurnAngle
    * @return
    */
-  types::MultiTurnAngleV161 readMultiTurnAngle();
+  absl::StatusOr<types::MultiTurnAngleV161> readMultiTurnAngle();
 
   /**
    * @brief (0x94): Read to SingleCircleAngle
    * @return
    */
-  types::SingleCircleAngleV161 readSingleCircleAngle();
+  absl::StatusOr<types::SingleCircleAngleV161> readSingleCircleAngle();
 
   /**
    * @brief (0x9A): Read to Motor Status_1
    * @return
    */
-  types::Status1DataV161 readStatus1();
+  absl::StatusOr<types::Status1DataV161> readStatus1();
 
   /**
    * @brief (0x9C): Read to Motor Status_2
    * @return
    */
-  types::Status2DataV161 readStatus2();
+  absl::StatusOr<types::Status2DataV161> readStatus2();
 
   /**
    * @brief (0x9D): Read to Motor Status_3
    * @return
    */
-  types::Status3DataV161 readStatus3();
+  absl::StatusOr<types::Status3DataV161> readStatus3();
 
   // --- Write/Action Method ---
   /**
@@ -83,25 +84,25 @@ class MotorV161 {
    * @param status_out [Output] Motor Status 1 Information after Error Clear
    * 2return True on success, False on failure
    */
-  bool clearErrorFlag(types::Status1DataV161& status_out);
+  absl::StatusOr<types::Status1DataV161> clearErrorFlag();
 
   // --- Motor State Control Method ---
   /**
    * @brief (0x80): Turn off the motor. All control states are reset.
    * @return true on success, false on failure
    */
-  bool motorOff();
+  absl::Status motorOff();
 
   /**
    * @brief (0x81): Stop the motor. The current control state is maintained.
    */
-  bool motorStop();
+  absl::Status motorStop();
 
   /**
    * @brief (0x88): Resume motor control from the Stop state.
    * @return ture on success, false on failure
    */
-  bool motorRun();
+  absl::Status motorRun();
 
   // --- Closed-Loop Control Method ---
   /**
@@ -111,8 +112,7 @@ class MotorV161 {
    * @return True if command succeeds and feedback is received, false if command
    * fails
    */
-  bool setTorqueControl(int16_t torque_setpoint,
-                        types::Status2DataV161& feedback_out);
+  absl::StatusOr<types::Status2DataV161> setTorqueControl(int16_t torque_setpoint);
 
   /**
    * @brief (0xA2): Start speed closed loop control.
@@ -121,8 +121,7 @@ class MotorV161 {
    * @return True if command succeeds and feedback is received, false if command
    * fails
    */
-  bool setSpeedControl(int32_t speed_setpoint,
-                       types::Status2DataV161& feedback_out);
+  absl::StatusOr<types::Status2DataV161> setSpeedControl(int32_t speed_setpoint);
 
   /**
    * @brief (0xA3): Start position closed loop control 1 (multi-turn)
@@ -131,8 +130,7 @@ class MotorV161 {
    * @return True if command succeeds and feedback is received, false if command
    * fails
    */
-  bool setPositionControl1(int32_t angle_setpoint,
-                           types::Status2DataV161& feedback_out);
+  absl::StatusOr<types::Status2DataV161> setPositionControl1(int32_t angle_setpoint);
 
   /**
    * @brief (0xA4): Start position closed loop control 2 (multi-turn, speed
@@ -143,9 +141,8 @@ class MotorV161 {
    * @return True if command succeeds and feedback is received, false if command
    * fails
    */
-  bool setPositionControl2(int32_t angle_setpoint,
-                           uint16_t max_speed,
-                           types::Status2DataV161& feedback_out);
+  absl::StatusOr<types::Status2DataV161> setPositionControl2(int32_t angle_setpoint,
+                           uint16_t max_speed);
 
   /**
    * @brief (0xA5): Start position closed loop control 3 (single rotation,
@@ -156,9 +153,8 @@ class MotorV161 {
    * @return True if command succeeds and feedback is received, false if command
    * fails
    */
-  bool setPositionControl3(uint16_t angle_setpoint,
-                           types::SpinDirection direction,
-                           types::Status2DataV161& feedback_out);
+  absl::StatusOr<types::Status2DataV161> setPositionControl3(uint16_t angle_setpoint,
+                           types::SpinDirection direction);
 
   /**
    * @brief (0xA6): Start position closed loop control 4 (single turn, heading,
@@ -170,16 +166,16 @@ class MotorV161 {
    * @return True if command succeeds and feedback is received, false if command
    * fails
    */
-  bool setPositionControl4(uint16_t angle_setpoint,
-                           types::SpinDirection direction,
-                           uint16_t max_speed,
-                           types::Status2DataV161& feedback_out);
+  absl::StatusOr<types::Status2DataV161> setPositionControl4(int32_t angle_setpoint,
+                           uint16_t max_time);
 
   /**
    * @brief 모터 구성 작업을 위한 MotorConfigurator 인스턴스 얻기
    * @return MotorConfigurator 인스턴스에 대한 참조
    */
-  MotorConfigurator& getConfigurator() { return *configurator_; }
+  const std::shared_ptr<MotorConfigurator>& getConfigurator() const {
+    return configurator_;
+  }
 
   /**
    * @brief 모터 액추에이터 작업을 위한 MotorActuator 인스턴스 얻기
