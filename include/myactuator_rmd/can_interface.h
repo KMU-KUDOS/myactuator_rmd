@@ -11,6 +11,7 @@
 
 #include "myactuator_rmd/can/exceptions.h"
 #include "myactuator_rmd/can/node.h"
+#include "absl/status/status.h"
 
 namespace v161_motor_control {
 
@@ -32,24 +33,24 @@ class CanInterface {
    * @brief : Send a CAN frame
    * @param can_id : Target CAN ID
    * @param data : 8 bytes of data to send
-   * @return : true on success, false on failure
+   * @return : Status indicating success or failure with error details
    */
-  bool sendFrame(uint32_t can_id, const std::array<uint8_t, 8>& data);
+  absl::Status sendFrame(uint32_t can_id, const std::array<uint8_t, 8>& data);
 
   /**
    * @brief : Receive frames from a specific CAN ID, Wait for timeout
    * @param expected_can_id : The CAN ID you expect to receive
    * @param data_out : Array to store the received data
-   * @return : true on success, false on failure
+   * @return : Status indicating success or failure with error details
    */
-  bool receiveFrame(uint32_t expected_can_id, std::array<uint8_t, 8>& data_out);
+  absl::Status receiveFrame(uint32_t expected_can_id, std::array<uint8_t, 8>& data_out);
 
   /**
    * @brief : Set the CAN receive filters to listen for specific IDs
    * @param ids : Vector of CAN IDs to filter for
-   * @return : true on success, false on failure
+   * @return : Status indicating success or failure with error details
    */
-  bool setReceiveFilters(const std::vector<uint32_t>& ids);
+  absl::Status setReceiveFilters(const std::vector<uint32_t>& ids);
 
   // Disable copy and move constructor/assignment operators (because of
   // unique_ptr member)
