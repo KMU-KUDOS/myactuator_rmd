@@ -11,6 +11,7 @@
 #include "myactuator_rmd/protocol/motor_configurator.h"
 #include "myactuator_rmd/protocol/motor_actuator.h"
 #include "myactuator_rmd/protocol/motor_status_querier.h"
+#include "absl/status/status.h"
 
 namespace v161_motor_control {
 
