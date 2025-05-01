@@ -4,8 +4,8 @@
 #include <memory>  // for std::make_shared
 #include <thread>  // for std::this_thread::sleep_for
 #include <vector>
-
 #include <cstdio>
+#include <functional>  // for std::function
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -45,414 +45,477 @@ void printStatus3(const v161_motor_control::types::Status3DataV161& status) {
             << ", Phase C: " << status.getCurrentC() << " A" << '\n';
 }
 
-int main() {
-  std::string can_interface_name = "can12";
-  uint8_t motor_id_to_test = 1;
+// Helper function to check absl::Status
+// Returns true if successful, false and prints error message if failed
+bool checkStatus(const absl::Status& status, const std::string& operation) {
+  if (!status.ok()) {
+    std::cerr << "Error occurred (" << operation << "): " << status.message() << '\n';
+    if (absl::IsInvalidArgument(status)) {
+      std::cerr << "  -> Invalid argument passed" << '\n';
+    } else if (absl::IsUnavailable(status)) {
+      std::cerr << "  -> CAN communication error occurred. Check connection" << '\n';
+    } else if (absl::IsInternal(status)) {
+      std::cerr << "  -> Internal processing error occurred" << '\n';
+    }
+    return false;
+  }
+  return true;
+}
+
+// Helper function to check absl::StatusOr<T>
+// Returns true if successful and stores value in out_value, false and prints error message if failed
+template <typename T>
+bool checkStatusOr(const absl::StatusOr<T>& status_or, T& out_value, 
+                  const std::string& operation) {
+  if (!status_or.ok()) {
+    std::cerr << "Error occurred (" << operation << "): " << status_or.status().message() << '\n';
+    if (absl::IsInvalidArgument(status_or.status())) {
+      std::cerr << "  -> Invalid argument passed" << '\n';
+    } else if (absl::IsUnavailable(status_or.status())) {
+      std::cerr << "  -> CAN communication error occurred. Check connection" << '\n';
+    } else if (absl::IsInternal(status_or.status())) {
+      std::cerr << "  -> Internal processing error occurred" << '\n';
+    }
+    return false;
+  }
+  out_value = status_or.value();
+  return true;
+}
+
+// Single motor control demo
+bool runSingleMotorDemo(v161_motor_control::MotorV161& motor) {
+  std::cout << "\n--- Single Motor Basic Function Demo ---\n";
+  
+  // Read motor data
+  std::cout << "\n[1] Read Motor Status Information\n";
+  {
+    v161_motor_control::types::Status1DataV161 status1_data;
+    if (!checkStatusOr(motor.readStatus1(), status1_data, "Read Status 1")) {
+      return false;
+    }
+    
+    std::cout << "Motor Status 1 Data:\n";
+    printStatus1(status1_data);
+    
+    v161_motor_control::types::Status2DataV161 status2_data;
+    if (!checkStatusOr(motor.readStatus2(), status2_data, "Read Status 2")) {
+      return false;
+    }
+    
+    std::cout << "Motor Status 2 Data:\n";
+    printStatus2(status2_data);
+    
+    v161_motor_control::types::MultiTurnAngleV161 angle_data;
+    if (!checkStatusOr(motor.readMultiTurnAngle(), angle_data, "Read Multi-Turn Angle")) {
+      return false;
+    }
+    
+    double angle_deg = static_cast<double>(angle_data.angle) * 0.01;
+    std::cout << "Current Motor Angle: " << std::fixed << std::setprecision(2) 
+              << angle_deg << " deg\n";
+  }
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  
+  // Basic motor control
+  std::cout << "\n[2] Basic Motor Control\n";
+  {
+    // Stop motor (for safety)
+    std::cout << "Stopping motor..." << '\n';
+    if (!checkStatus(motor.motorStop(), "Stop Motor")) {
+      return false;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    
+    // Turn on motor
+    std::cout << "Turning motor on..." << '\n';
+    if (!checkStatus(motor.motorRun(), "Turn Motor On")) {
+      return false;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    
+    // Speed control test
+    std::cout << "Speed Control Test (10 dps)...\n";
+    v161_motor_control::types::Status2DataV161 feedback;
+    if (!checkStatusOr(motor.setSpeedControl(1000), feedback, "Speed Control")) {
+      return false;
+    }
+    std::cout << "Speed Control Feedback:\n";
+    printStatus2(feedback);
+    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+    
+    // Torque control test
+    std::cout << "Torque Control Test (5% of max torque)...\n";
+    if (!checkStatusOr(motor.setTorqueControl(100), feedback, "Torque Control")) {
+      return false;
+    }
+    std::cout << "Torque Control Feedback:\n";
+    printStatus2(feedback);
+    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+    
+    // Stop motor
+    std::cout << "Stopping motor..." << '\n';
+    if (!checkStatus(motor.motorStop(), "Stop Motor")) {
+      return false;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+  }
+  
+  // Position control test
+  std::cout << "\n[3] Position Control Test\n";
+  {
+    // Absolute position movement (with speed limit)
+    std::cout << "Multi-Turn Position Control Test (10 degrees, max speed: 20 dps)...\n";
+    v161_motor_control::types::Status2DataV161 feedback;
+    
+    if (!checkStatusOr(motor.setPositionControl2(1000, 20), feedback, "Position Control")) {
+      return false;
+    }
+    std::cout << "Position Control Feedback:\n";
+    printStatus2(feedback);
+    std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+    
+    // Position control with direction
+    std::cout << "Position Control with Direction Test (180 degrees, clockwise)...\n";
+    if (!checkStatusOr(motor.setPositionControl3(18000, 
+        v161_motor_control::types::SpinDirection::CLOCKWISE), feedback, "Position Control with Direction")) {
+      return false;
+    }
+    std::cout << "Position Control with Direction Feedback:\n";
+    printStatus2(feedback);
+    std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+    
+    // Stop motor
+    std::cout << "Stopping motor..." << '\n';
+    if (!checkStatus(motor.motorStop(), "Stop Motor")) {
+      return false;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+  }
+  
+  // Motor configuration test
+  std::cout << "\n[4] Motor Configuration Test\n";
+  {
+    // Read PID
+    v161_motor_control::types::PidDataV161 pid_data;
+    if (!checkStatusOr(motor.readPid(), pid_data, "Read PID")) {
+      return false;
+    }
+    
+    std::cout << "Current PID Configuration: "
+              << " Angle(Kp:" << static_cast<int>(pid_data.anglePidKp)
+              << ", Ki:" << static_cast<int>(pid_data.anglePidKi) << ")"
+              << " Speed(Kp:" << static_cast<int>(pid_data.speedPidKp)
+              << ", Ki:" << static_cast<int>(pid_data.speedPidKi) << ")"
+              << " Torque(Kp:" << static_cast<int>(pid_data.iqPidKp)
+              << ", Ki:" << static_cast<int>(pid_data.iqPidKi) << ")\n";
+    
+    // Write PID to RAM (no value change)
+    std::cout << "Writing PID to RAM..." << '\n';
+    if (!checkStatus(motor.getConfigurator()->writePidToRam(pid_data), "Write PID to RAM")) {
+      return false;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  }
+  
+  // Motor shutdown
+  std::cout << "\n[5] Motor Shutdown\n";
+  {
+    std::cout << "Turning motor off..." << '\n';
+    if (!checkStatus(motor.motorOff(), "Turn Motor Off")) {
+      return false;
+    }
+  }
+  
+  std::cout << "\nSingle Motor Basic Function Demo Completed!\n";
+  return true;
+}
+
+// Multiple motor control demo
+bool runMultipleMotorsDemo(std::vector<std::shared_ptr<v161_motor_control::MotorV161>>& motors) {
+  if (motors.empty()) {
+    std::cerr << "No motors found.\n";
+    return false;
+  }
+  
+  std::cout << "\n--- Multiple Motor Control Demo ---\n";
+  std::cout << motors.size() << " motors to control.\n";
+  
+  // Read all motors' status information
+  std::cout << "\n[1] Read All Motors' Status Information\n";
+  for (size_t i = 0; i < motors.size(); ++i) {
+    std::cout << "Motor #" << i+1 << " Status:\n";
+    
+    v161_motor_control::types::Status1DataV161 status1_data;
+    if (!checkStatusOr(motors[i]->readStatus1(), status1_data, "Read Motor #" + std::to_string(i+1) + " Status 1")) {
+      continue;  // Continue even if this motor fails
+    }
+    printStatus1(status1_data);
+    
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  
+  // Stop all motors
+  std::cout << "\n[2] Stop All Motors\n";
+  for (size_t i = 0; i < motors.size(); ++i) {
+    std::cout << "Stopping Motor #" << i+1 << "..." << '\n';
+    if (!checkStatus(motors[i]->motorStop(), "Stop Motor #" + std::to_string(i+1))) {
+      continue;  // Continue even if this motor fails
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  
+  // Prepare all motors
+  std::cout << "\n[3] Turn On All Motors\n";
+  for (size_t i = 0; i < motors.size(); ++i) {
+    std::cout << "Turning On Motor #" << i+1 << "..." << '\n';
+    if (!checkStatus(motors[i]->motorRun(), "Turn Motor #" + std::to_string(i+1) + " On")) {
+      continue;  // Continue even if this motor fails
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  
+  // All motors rotate at the same speed
+  std::cout << "\n[4] Rotate All Motors at the Same Speed\n";
+  for (size_t i = 0; i < motors.size(); ++i) {
+    std::cout << "Setting Motor #" << i+1 << " Speed (20 dps)...\n";
+    v161_motor_control::types::Status2DataV161 feedback;
+    if (!checkStatusOr(motors[i]->setSpeedControl(2000), feedback, 
+                      "Set Motor #" + std::to_string(i+1) + " Speed Control")) {
+      continue;  // Continue even if this motor fails
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  
+  // Wait for all motors to move
+  std::cout << "All motors are rotating...\n";
+  std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+  
+  // Stop all motors
+  std::cout << "\n[5] Stop All Motors\n";
+  for (size_t i = 0; i < motors.size(); ++i) {
+    std::cout << "Stopping Motor #" << i+1 << "..." << '\n';
+    if (!checkStatus(motors[i]->motorStop(), "Stop Motor #" + std::to_string(i+1))) {
+      continue;  // Continue even if this motor fails
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  
+  // All motors move to different positions simultaneously
+  std::cout << "\n[6] Move All Motors Simultaneously to Different Positions\n";
+  {
+    // Prepare commands for all motors
+    std::vector<std::function<void()>> position_commands;
+    for (size_t i = 0; i < motors.size(); ++i) {
+      // Different positions for each motor (30 degrees * (i+1))
+      int32_t target_angle = static_cast<int32_t>(3000 * (i + 1));
+      
+      position_commands.push_back([&motors, i, target_angle]() {
+        std::cout << "Setting Motor #" << i+1 << " Position (" << target_angle / 100.0 << " degrees)...\n";
+        v161_motor_control::types::Status2DataV161 feedback;
+        if (!checkStatusOr(motors[i]->setPositionControl2(target_angle, 50), feedback,
+                          "Set Motor #" + std::to_string(i+1) + " Position Control")) {
+          return;  // Continue even if this motor fails
+        }
+      });
+    }
+    
+    // Execute all motor commands at once
+    for (auto& cmd : position_commands) {
+      cmd();
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));  // Very short delay
+    }
+  }
+  
+  // Wait for position movement to complete
+  std::cout << "All motors are moving to specified positions...\n";
+  std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+  
+  // Shutdown all motors
+  std::cout << "\n[7] Shutdown All Motors\n";
+  for (size_t i = 0; i < motors.size(); ++i) {
+    std::cout << "Turning Off Motor #" << i+1 << "..." << '\n';
+    if (!checkStatus(motors[i]->motorOff(), "Turn Motor #" + std::to_string(i+1) + " Off")) {
+      continue;  // Continue even if this motor fails
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  
+  std::cout << "\nMultiple Motor Control Demo Completed!\n";
+  return true;
+}
+
+// Error handling demo
+void errorHandlingDemo() {
+  std::cout << "\n--- Error Handling Demo ---\n";
+  
+  std::cout << "This demo shows error handling patterns using absl::Status and absl::StatusOr.\n";
+  
+  // Attempt to use a non-existent CAN interface
+  std::cout << "\n[1] Attempt to Use a Non-Existent CAN Interface\n";
+  try {
+    std::cout << "Attempting to connect to non-existent CAN interface 'invalid_can'...\n";
+    auto can_interface = std::make_shared<v161_motor_control::CanInterface>("invalid_can");
+    
+    // This part should not be reached (exception expected)
+    std::cout << "CAN interface creation succeeded (should not be reached)\n";
+  } catch (const std::exception& e) {
+    std::cout << "Expected exception: " << e.what() << "\n";
+    std::cout << "This is because the current implementation throws an exception if CAN interface creation fails.\n";
+  }
+  
+  // Attempt to add a wrong ID to the motor registry
+  std::cout << "\n[2] Attempt to Add a Wrong ID to the Motor Registry\n";
+  {
+    auto motor_registry = std::make_shared<v161_motor_control::MotorRegistry>();
+    
+    // ID out of valid range (1-32)
+    uint8_t invalid_id = 33;
+    std::cout << "Attempting to add invalid ID " << static_cast<int>(invalid_id) << " to the motor registry...\n";
+    
+    auto status = motor_registry->addMotorId(invalid_id);
+    if (!status.ok()) {
+      std::cout << "Expected error: " << status.message() << "\n";
+    } else {
+      std::cout << "ID addition succeeded (should not be reached)\n";
+    }
+  }
+  
+  std::cout << "\n[3] StatusOr Handling Pattern\n";
+  std::cout << "StatusOr<T> contains T type value and Status on success, and Status on failure.\n";
+  std::cout << "Correct handling pattern:\n";
+  std::cout << "  auto result_or = someFunction();\n";
+  std::cout << "  if (!result_or.ok()) {\n";
+  std::cout << "    // Error handling\n";
+  std::cout << "    std::cerr << \"Error: \" << result_or.status().message() << std::endl;\n";
+  std::cout << "    return; // Or other error handling\n";
+  std::cout << "  }\n";
+  std::cout << "  // Use value on success\n";
+  std::cout << "  auto result = result_or.value();\n";
+  
+  std::cout << "\n[4] General Error Status Codes\n";
+  std::cout << "- absl::InvalidArgumentError: Invalid argument passed to method\n";
+  std::cout << "- absl::UnavailableError: CAN communication error (connection issue, etc.)\n";
+  std::cout << "- absl::InternalError: Internal processing error (response parsing failure, etc.)\n";
+  std::cout << "- absl::DeadlineExceededError: Command timeout (no response received)\n";
+  std::cout << "- absl::AlreadyExistsError: Attempt to add already existing resource (motor ID, etc.)\n";
+  
+  std::cout << "\nError Handling Demo Completed!\n";
+}
+
+int main(int argc, char* argv[]) {
+  // Extract CAN interface name and motor ID from command line arguments
+  std::string can_interface_name = "can0";  // Default value
+  std::vector<uint8_t> motor_ids = {1};     // Default value
+  bool demo_multi_motor = false;            // Whether to run multiple motor demo
+  bool demo_error_handling = false;         // Whether to run error handling demo
+  
+  // Process command line arguments
+  for (int i = 1; i < argc; ++i) {
+    std::string arg = argv[i];
+    if (arg == "--can" && i + 1 < argc) {
+      can_interface_name = argv[++i];
+    } else if (arg == "--motor-id" && i + 1 < argc) {
+      motor_ids.clear();  // Remove existing default value
+      motor_ids.push_back(static_cast<uint8_t>(std::stoi(argv[++i])));
+    } else if (arg == "--add-motor-id" && i + 1 < argc) {
+      motor_ids.push_back(static_cast<uint8_t>(std::stoi(argv[++i])));
+    } else if (arg == "--demo-multi-motor") {
+      demo_multi_motor = true;
+    } else if (arg == "--demo-error-handling") {
+      demo_error_handling = true;
+    } else if (arg == "--help") {
+      std::cout << "Usage: " << argv[0] << " [options]\n";
+      std::cout << "Options:\n";
+      std::cout << "  --can <interface>       Use CAN interface (default: can0)\n";
+      std::cout << "  --motor-id <ID>         Control motor ID (default: 1)\n";
+      std::cout << "  --add-motor-id <ID>     Additional motor ID (for multiple motor control)\n";
+      std::cout << "  --demo-multi-motor      Run multiple motor control demo\n";
+      std::cout << "  --demo-error-handling   Run error handling demo\n";
+      std::cout << "  --help                  Show this help message\n";
+      return 0;
+    }
+  }
+
+  // Clear output buffer
+  std::cout << std::unitbuf;
+
+  std::cout << "MyActuator RMD Motor V161 Control Example\n";
+  std::cout << "CAN Interface: " << can_interface_name << "\n";
+  std::cout << "Motor ID: ";
+  for (auto id : motor_ids) {
+    std::cout << static_cast<int>(id) << " ";
+  }
+  std::cout << "\n\n";
+  
+  // Run error handling demo only if no multi-motor demo or single motor
+  if (demo_error_handling && !demo_multi_motor && motor_ids.size() <= 1) {
+    errorHandlingDemo();
+    return 0;
+  }
 
   try {
     // Create a CAN interface (managed by shared_ptr)
+    std::cout << "Initializing CAN Interface(" << can_interface_name << ")...\n";
     auto can_interface =
         std::make_shared<v161_motor_control::CanInterface>(can_interface_name);
     
     // Create a Motor Registry (managed by shared_ptr)
+    std::cout << "Initializing Motor Registry...\n";
     auto motor_registry = 
         std::make_shared<v161_motor_control::MotorRegistry>();
     
     // Add motor ID to registry
-    auto status = motor_registry->addMotorId(motor_id_to_test);
-    if (!status.ok()) {
-      if (absl::IsAlreadyExists(status)) {
-        // This is just informational, we can continue
-        std::cout << "Information: " << status.message() << '\n';
-      } else {
-        // Real error we should stop for
-        std::cerr << "Error adding motor ID: " << status.message() << '\n';
-        return 1;
+    for (auto id : motor_ids) {
+      std::cout << "Registering Motor ID " << static_cast<int>(id) << "...\n";
+      auto status = motor_registry->addMotorId(id);
+      if (!status.ok()) {
+        if (absl::IsAlreadyExists(status)) {
+          // This is just informational, we can continue
+          std::cout << "Information: " << status.message() << '\n';
+    } else {
+          // Real error we should stop for
+          std::cerr << "Error adding motor ID: " << status.message() << '\n';
+          return 1;
+        }
       }
     }
     
     // Create Motor with both CAN Interface and Motor Registry
-    v161_motor_control::MotorV161 motor(can_interface, motor_registry, motor_id_to_test);
-
-    std::cout << "Successfully initialized motor control for ID "
-              << static_cast<int>(motor_id_to_test) << '\n'
-              << '\n';
-
-    // Read Motor Command
-    std::cout << "--- Reading Motor Data ---" << '\n';
-
-    // Read PID
-    auto pid_data_or = motor.readPid();
-    if (!pid_data_or.ok()) {
-      std::cerr << "Failed to read PID data: " << pid_data_or.status().message() << '\n';
-      return 1;
+    std::vector<std::shared_ptr<v161_motor_control::MotorV161>> motors;
+    for (auto id : motor_ids) {
+      std::cout << "Creating Motor #" << static_cast<int>(id) << " object...\n";
+      motors.push_back(std::make_shared<v161_motor_control::MotorV161>(
+          can_interface, motor_registry, id));
     }
-    auto pid_data = pid_data_or.value();
     
-    std::cout << "[Read PID (0x30)]"
-              << " Angle(Kp:" << static_cast<int>(pid_data.anglePidKp)
-              << ", Ki:" << static_cast<int>(pid_data.anglePidKp) << ")"
-              << " Speed(Kp:" << static_cast<int>(pid_data.speedPidKp)
-              << ", Ki:" << static_cast<int>(pid_data.speedPidKi) << ")"
-              << " Torque(Kp:" << static_cast<int>(pid_data.iqPidKp)
-              << ", Ki:" << static_cast<int>(pid_data.iqPidKi) << ")" << '\n'
-              << '\n';
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    // Read Accel
-    auto accel_data_or = motor.readAcceleration();
-    if (!accel_data_or.ok()) {
-      std::cerr << "Failed to read acceleration data: " << accel_data_or.status().message() << '\n';
-      return 1;
-    }
-    auto accel_data = accel_data_or.value();
+    std::cout << "Motor initialization completed!\n\n";
     
-    std::cout << "[Read Accel (0x33)] Acceleration: " << accel_data.acceleration
-              << " dps/s"
-              << ")" << '\n'
-              << '\n';
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    // Read Encoder
-    auto encoder_data_or = motor.readEncoder();
-    if (!encoder_data_or.ok()) {
-      std::cerr << "Failed to read encoder data: " << encoder_data_or.status().message() << '\n';
-      return 1;
+    // Single motor demo
+    if (!demo_multi_motor || motors.size() <= 1) {
+      if (!runSingleMotorDemo(*motors[0])) {
+        std::cerr << "Single motor demo execution failed\n";
+        return 1;
+      }
     }
-    auto encoder_data = encoder_data_or.value();
     
-    std::cout << "[Read Encoder (0x90)] Pos: " << encoder_data.position
-              << ", Raw: " << encoder_data.raw_position
-              << ", Offset: " << encoder_data.offset << ")" << '\n'
-              << '\n';
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    // Read Multi-Turn Angle
-    auto multi_turn_angle_or = motor.readMultiTurnAngle();
-    if (!multi_turn_angle_or.ok()) {
-      std::cerr << "Failed to read multi-turn angle: " << multi_turn_angle_or.status().message() << '\n';
-      return 1;
+    // Multiple motor demo
+    if (demo_multi_motor && motors.size() > 1) {
+      if (!runMultipleMotorsDemo(motors)) {
+        std::cerr << "Multiple motor demo execution failed\n";
+        return 1;
+      }
     }
-    auto multi_turn_angle = multi_turn_angle_or.value();
     
-    double angle_deg_multi = static_cast<double>(multi_turn_angle.angle) * 0.01;
-    std::cout << "[Read Multi-Turn Angle (0x92)] Raw: "
-              << multi_turn_angle.angle << " (" << std::fixed
-              << std::setprecision(2) << angle_deg_multi << " deg)" << '\n'
-              << '\n';
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    // Read Single-Turn Angle
-    auto single_circle_angle_or = motor.readSingleCircleAngle();
-    if (!single_circle_angle_or.ok()) {
-      std::cerr << "Failed to read single-circle angle: " << single_circle_angle_or.status().message() << '\n';
-      return 1;
+    // Error handling demo
+    if (demo_error_handling) {
+      errorHandlingDemo();
     }
-    auto single_circle_angle = single_circle_angle_or.value();
-    
-    double angle_deg_single =
-        static_cast<double>(single_circle_angle.angle) * 0.01;
-    std::cout << "[Read Single Circle Angle (0x94)] Raw: "
-              << single_circle_angle.angle << " (" << std::fixed
-              << std::setprecision(2) << angle_deg_single << " deg)" << '\n'
-              << '\n';
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    // Read Status 1
-    auto status1_data_or = motor.readStatus1();
-    if (!status1_data_or.ok()) {
-      std::cerr << "Failed to read status 1: " << status1_data_or.status().message() << '\n';
-      return 1;
-    }
-    auto status1_data = status1_data_or.value();
-    
-    std::cout << "[Read Status 1 (0x9A)]" << '\n';
-    printStatus1(status1_data);
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    // Read Status 2
-    auto status2_data_or = motor.readStatus2();
-    if (!status2_data_or.ok()) {
-      std::cerr << "Failed to read status 2: " << status2_data_or.status().message() << '\n';
-      return 1;
-    }
-    auto status2_data = status2_data_or.value();
-    
-    std::cout << '\n' << "[Read Status 2 (0x9C)]" << '\n';
-    printStatus2(status2_data);
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    // Read Status 3
-    auto status3_data_or = motor.readStatus3();
-    if (!status3_data_or.ok()) {
-      std::cerr << "Failed to read status 3: " << status3_data_or.status().message() << '\n';
-      return 1;
-    }
-    auto status3_data = status3_data_or.value();
-    
-    std::cout << '\n' << "[Read Status 3 (0x9D)]" << '\n';
-    printStatus3(status3_data);
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    auto initial_status1_or = motor.readStatus1();
-    if (!initial_status1_or.ok()) {
-      std::cerr << "Failed to read initial status 1: " << initial_status1_or.status().message() << '\n';
-      return 1;
-    }
-    auto initial_status1 = initial_status1_or.value();
-    
-    printStatus1(initial_status1);
-
-    std::cout << "--- Finished reading ---" << '\n' << '\n';
-
-    auto initial_encoder_or = motor.readEncoder();
-    if (!initial_encoder_or.ok()) {
-      std::cerr << "Failed to read initial encoder: " << initial_encoder_or.status().message() << '\n';
-      return 1;
-    }
-    auto initial_encoder = initial_encoder_or.value();
-    
-    std::cout << "[Initial Encoder (0x90)] Pos: " << initial_encoder.position
-              << ", Raw: " << initial_encoder.raw_position
-              << ", Offset: " << initial_encoder.offset << '\n';
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    // Write/Action Motor Command
-    std::cout << '\n' << "--- Write/Action Command ---" << '\n';
-
-    // Read the PID value and write it back to RAM (no value change)
-    std::cout << '\n' << "Write PID to RAM (0x31)..." << '\n';
-    auto current_pid_or = motor.readPid();
-    if (!current_pid_or.ok()) {
-      std::cerr << "Failed to read current PID: " << current_pid_or.status().message() << '\n';
-      return 1;
-    }
-    auto current_pid = current_pid_or.value();
-
-    status = motor.getConfigurator()->writePidToRam(current_pid);
-    if (status.ok()) {
-      std::cout << " -> Successfully wrote PID to RAM (echo verified)" << '\n';
-    } else {
-      std::cerr << " -> Failed to write PID to RAM: " << status.message() << '\n';
-    }
-    std::this_thread::sleep_for(
-        std::chrono::milliseconds(200));  // Wait after writing
-
-    // Read acceleration value and write it back to RAM (no value change)
-    std::cout << "Write Acceleration to RAM (0x34)..." << '\n';
-    auto current_accel_or = motor.readAcceleration();
-    if (!current_accel_or.ok()) {
-      std::cerr << "Failed to read current acceleration: " << current_accel_or.status().message() << '\n';
-      return 1;
-    }
-    auto current_accel = current_accel_or.value();
-
-    status = motor.getConfigurator()->writeAccelerationToRam(current_accel);
-    if (status.ok()) {
-      std::cout << " -> Successfully wrote Acceleration to RAM (echo verified)"
-                << '\n';
-    } else {
-      std::cerr << " -> Failed to write Acceleration to RAM: " << status.message() << '\n';
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
-    // Attempting to change the encoder offset (e.g. current offset + 0), which
-    // can be dangerous depending on the actual motor state! Caution: When
-    // connecting real motors, run this test carefully as it can affect motor
-    // behavior
-    std::cout << '\n' << "Write Encoder Offset (0x91)..." << '\n';
-    uint16_t new_offset =
-        (initial_encoder.offset + 0) % 16384;  // Stay in scope
-    std::cout << " -> Successfully sent write new offset: " << new_offset
-              << '\n';
-
-    auto written_offset_or = motor.getConfigurator()->writeEncoderOffset(new_offset);
-    if (written_offset_or.ok()) {
-      std::cout << " -> Successfully sent Write Encoder Offset command. Motor "
-                   "reported written offset: "
-                << written_offset_or.value() << '\n';
-    } else {
-      std::cerr << " -> Failed to send Write Encoder Offset command: " 
-                << written_offset_or.status().message() << '\n';
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
-    // Attempt to clear error flag (0x9B)
-    std::cout << '\n' << "Clear Error Flag (0x9B)..." << '\n';
-
-    auto status_after_clear_or = motor.clearErrorFlag();
-    if (status_after_clear_or.ok()) {
-      std::cout
-          << " -> Successfully sent Clear Error Flag command. Current Status:"
-          << '\n';
-      printStatus1(status_after_clear_or.value());
-    } else {
-      std::cerr << " -> Failed to send Clear Error Flag command or get response: "
-                << status_after_clear_or.status().message() << '\n';
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    // Save current location as zero (0x19) - Caution! Write ROM, reboot
-    // required Be very careful when connecting the actual motor. The zero point
-    // will change.
-    std::cout << '\n'
-              << "Testing Write Position As Zero to ROM (0x19)..." << '\n';
-
-    auto zero_offset_written_or = motor.getConfigurator()->writePositionAsZero();
-    if (zero_offset_written_or.ok()) {
-      std::cout << " -> Successfully sent Write Position As Zero command. "
-                   "Reported new offset: "
-                << zero_offset_written_or.value() << '\n';
-      std::cout
-          << " -> !!! Motor requires restart for this change to effect !!!"
-          << '\n';
-    } else {
-      std::cerr << " -> Failed to send Write Position As Zero command: "
-                << zero_offset_written_or.status().message() << '\n';
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
-    std::cout << '\n' << "--- Finished Write/Action Command ---" << '\n';
-
-    // !!! Caution !!!
-    // The code below moves the actual motor
-    // Make sure the motor is securely fastened and that there are no obstacles
-    // around it Power off the motor before testing, and have an emergency stop
-    // available during testing
-    // !!! Caution !!!
-
-    v161_motor_control::types::Status2DataV161
-        feedback;  // For storing feedback
-
-    // --- Check motor status and stop first for safety ---
-    std::cout << '\n' << "--- Initializing Motor State ---" << '\n';
-    std::cout << "Stopping motor (0x81)..." << '\n';
-
-    status = motor.motorStop();
-    if (!status.ok()) {
-      std::cerr << "Failed to stop motor initially: " << status.message() << '\n';
-    }
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    std::cout << "Turning motor off (0x80) for safety..." << '\n';
-
-    status = motor.motorOff();
-    if (!status.ok()) {
-      std::cerr << "Failed to turn off motor off: " << status.message() << '\n';
-    }
-
-    std::this_thread::sleep_for(
-        std::chrono::milliseconds(500));  // Wait long enough for it to turn off
-
-    // Control Motor Command
-    std::cout << '\n'
-              << "--- Control Motor Command (Caution: Motor will move!)---"
-              << '\n';
-
-    // --- Motor State & Control Tests ---
-    std::cout << '\n' << "--- Testing Basic Motor Controls ---" << '\n';
-    std::cout << "Testing motor on-off cycle..." << '\n';
-
-    // Ensure motor is on
-    status = motor.motorRun();
-    if (!status.ok()) {
-      std::cerr << "Failed to turn on motor: " << status.message() << '\n';
-      return 1;
-    }
-
-    // Speed Control
-    std::cout << '\n' << "Testing Speed Control (0xA2)..." << '\n';
-    int32_t speed_sp_dps100 = 100;  // Using a slow movement for safety (1.0 dps)
-    std::cout << "Setting speed: " << speed_sp_dps100 << " (0.01 dps)" << '\n';
-
-    auto feedback_or = motor.setSpeedControl(speed_sp_dps100);
-    if (feedback_or.ok()) {
-      auto feedback = feedback_or.value();
-      std::cout << "  -> Speed command sent. Feedback data:" << '\n';
-      printStatus2(feedback);
-    } else {
-      std::cerr << "  -> Failed to send speed command: " << feedback_or.status().message() << '\n';
-    }
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));  // Let it run for 1 sec
-    status = motor.motorStop();
-    if (!status.ok()) {
-      std::cerr << "Failed to stop motor: " << status.message() << '\n';
-    }
-
-    // Position Control with speed limit
-    std::cout << '\n' << "Testing Position Control with Speed Limit (0xA4)..." << '\n';
-    int32_t angle_sp_deg100 = 10 * 100;  // 10 degrees in 0.01-degree units
-    uint16_t max_speed_dps = 10;  // 10 dps maximum speed
-
-    std::cout << "Setting position: " << angle_sp_deg100 / 100.0 << " deg with speed limit " 
-              << max_speed_dps << " dps" << '\n';
-
-    feedback_or = motor.setPositionControl2(angle_sp_deg100, max_speed_dps);
-    if (feedback_or.ok()) {
-      auto feedback = feedback_or.value();
-      std::cout << "  -> Position command sent. Feedback data:" << '\n';
-      printStatus2(feedback);
-    } else {
-      std::cerr << "  -> Failed to send position command: " << feedback_or.status().message() << '\n';
-    }
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(3000));  // Wait for motion to complete
-
-    // Position control with direction
-    std::cout << '\n' << "Testing Position Control with Direction (0xA5)..." << '\n';
-    uint16_t angle_sp_single_deg100 = 180 * 100;  // 180 degrees in single turn (0-360)
-    uint16_t max_speed_single_dps = 30;  // 30 dps speed
-
-    std::cout << "Setting position: " << angle_sp_single_deg100 / 100.0
-              << " deg (single turn) with " 
-              << "counter-clockwise direction" << '\n';
-
-    feedback_or = motor.setPositionControl3(angle_sp_single_deg100, 
-                                          v161_motor_control::types::SpinDirection::COUNTER_CLOCKWISE);
-    if (feedback_or.ok()) {
-      auto feedback = feedback_or.value();
-      std::cout << "  -> Position + direction command sent. Feedback data:" << '\n';
-      printStatus2(feedback);
-    } else {
-      std::cerr << "  -> Failed to send position + direction command: " << feedback_or.status().message() << '\n';
-    }
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(3000));  // Wait for motion to complete
-
-    // Torque Control
-    std::cout << '\n' << "Testing Torque Control (0xA1)..." << '\n';
-    int16_t torque_sp = 200;  // Small positive torque
-    std::cout << "Setting torque: " << torque_sp << '\n';
-
-    feedback_or = motor.setTorqueControl(torque_sp);
-    if (feedback_or.ok()) {
-      auto feedback = feedback_or.value();
-      std::cout << "  -> Torque command sent. Feedback data:" << '\n';
-      printStatus2(feedback);
-    } else {
-      std::cerr << "  -> Failed to send torque command: " << feedback_or.status().message() << '\n';
-    }
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(2000));  // Apply torque for 2 sec
-    status = motor.motorStop();
-    if (!status.ok()) {
-      std::cerr << "Failed to stop motor: " << status.message() << '\n';
-    }
-
-    std::cout << '\n' << "Turning motor off..." << '\n';
-    status = motor.motorOff();
-    if (!status.ok()) {
-      std::cerr << "Failed to turn off motor: " << status.message() << '\n';
-    }
-
-    std::cout << '\n' << "Motor test complete!" << '\n';
 
   } catch (const std::exception& e) {
     std::cerr << "Exception: " << e.what() << '\n';
     return 1;
   }
 
-  std::cout << "Program finished" << '\n';
+  std::cout << "\nProgram finished\n";
   return 0;
 }
