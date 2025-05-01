@@ -366,4 +366,54 @@ absl::StatusOr<types::PositionResponseV161> MotorActuator::setPositionRelative(
   return position_data_out;
 }
 
+absl::StatusOr<types::Status2DataV161> MotorActuator::setPositionControlWithDirection(
+    uint16_t angle_setpoint, types::SpinDirection direction) {
+  if (angle_setpoint > 35999) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("Angle for PositionControl3 should be 0 ~ 35999, got ", angle_setpoint));
+  }
+  
+  absl::StatusOr<std::array<uint8_t, 8>> command_data_or = 
+      packing::createPositionControl3Frame(angle_setpoint, direction);
+  if (!command_data_or.ok()) {
+    return command_data_or.status();
+  }
+  
+  std::array<uint8_t, 8> response_data;
+  absl::Status status = sendCommandAndGetResponse(
+      command_data_or.value(), protocol::CMD_POSITION_CONTROL_3, response_data, 0);
+      
+  if (!status.ok()) {
+    return status;
+  }
+  
+  // 응답 데이터 파싱
+  return parsing::parseClosedLoopResponse(response_data, protocol::CMD_POSITION_CONTROL_3);
+}
+
+absl::StatusOr<types::Status2DataV161> MotorActuator::setPositionControlWithDirectionAndSpeed(
+    uint16_t angle_setpoint, types::SpinDirection direction, uint16_t max_speed) {
+  if (angle_setpoint > 35999) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("Angle for PositionControl4 should be 0 ~ 35999, got ", angle_setpoint));
+  }
+  
+  absl::StatusOr<std::array<uint8_t, 8>> command_data_or = 
+      packing::createPositionControl4Frame(angle_setpoint, direction, max_speed);
+  if (!command_data_or.ok()) {
+    return command_data_or.status();
+  }
+  
+  std::array<uint8_t, 8> response_data;
+  absl::Status status = sendCommandAndGetResponse(
+      command_data_or.value(), protocol::CMD_POSITION_CONTROL_4, response_data, 0);
+      
+  if (!status.ok()) {
+    return status;
+  }
+  
+  // 응답 데이터 파싱
+  return parsing::parseClosedLoopResponse(response_data, protocol::CMD_POSITION_CONTROL_4);
+}
+
 }  // namespace v161_motor_control 
