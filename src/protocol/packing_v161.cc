@@ -9,6 +9,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "myactuator_rmd/protocol/protocol_v161.h"  // Command code
+#include "myactuator_rmd/status_macros.h"  // for RETURN_IF_ERROR
 
 namespace v161_motor_control::packing {
 
@@ -125,11 +126,7 @@ absl::StatusOr<std::array<uint8_t, 8>> createWriteAccelRamFrame(
   std::array<uint8_t, 8> data = {
       protocol::CMD_WRITE_ACCEL_RAM, 0, 0, 0, 0, 0, 0, 0};
 
-  absl::Status status = packLittleEndian<int32_t>(data, 4, accel_data.acceleration);
-  if (!status.ok()) {
-    return status;
-  }
-
+  RETURN_IF_ERROR(packLittleEndian<int32_t>(data, 4, accel_data.acceleration));
   return data;
 }
 
@@ -137,10 +134,7 @@ absl::StatusOr<std::array<uint8_t, 8>> createWriteEncoderOffsetFrame(uint16_t of
   std::array<uint8_t, 8> data = {
       protocol::CMD_WRITE_ENCODER_OFFSET, 0, 0, 0, 0, 0, 0, 0};
   // Assuming offset is packed at index 6 based on parsing function
-  absl::Status status = packLittleEndian<uint16_t>(data, 6, offset);
-  if (!status.ok()) {
-    return status;
-  }
+  RETURN_IF_ERROR(packLittleEndian<uint16_t>(data, 6, offset));
   return data;
 }
 
@@ -170,11 +164,7 @@ absl::StatusOr<std::array<uint8_t, 8>> createTorqueControlFrame(int16_t torque_s
   std::array<uint8_t, 8> data = {
       protocol::CMD_TORQUE_CONTROL, 0, 0, 0, 0, 0, 0, 0};
   // torque control value (int16_t) in bytes 4-5
-  absl::Status status = packLittleEndian<int16_t>(data, 4, torque_setpoint);
-  if (!status.ok()) {
-    return status;
-  }
-
+  RETURN_IF_ERROR(packLittleEndian<int16_t>(data, 4, torque_setpoint));
   return data;
 }
 
@@ -182,11 +172,7 @@ absl::StatusOr<std::array<uint8_t, 8>> createSpeedControlFrame(int32_t speed_set
   std::array<uint8_t, 8> data = {
       protocol::CMD_SPEED_CONTROL, 0, 0, 0, 0, 0, 0, 0};
   // speed control value (int32_t) in bytes 4-7
-  absl::Status status = packLittleEndian<int32_t>(data, 4, speed_setpoint);
-  if (!status.ok()) {
-    return status;
-  }
-
+  RETURN_IF_ERROR(packLittleEndian<int32_t>(data, 4, speed_setpoint));
   return data;
 }
 
@@ -195,11 +181,7 @@ absl::StatusOr<std::array<uint8_t, 8>> createPositionControl1Frame(int32_t angle
       protocol::CMD_POSITION_CONTROL_1, 0, 0, 0, 0, 0, 0, 0};
   // Position control (int32_t) in bytes 4-7
   // Let's follow the byte count: DATA[4] low byte ... DATA[7] high byte
-  absl::Status status = packLittleEndian<int32_t>(data, 4, angle_setpoint);
-  if (!status.ok()) {
-    return status;
-  }
-
+  RETURN_IF_ERROR(packLittleEndian<int32_t>(data, 4, angle_setpoint));
   return data;
 }
 
@@ -210,16 +192,8 @@ absl::StatusOr<std::array<uint8_t, 8>> createPositionControl2Frame(
       protocol::CMD_POSITION_CONTROL_2, 0, 0, 0, 0, 0, 0, 0};
   // speed limit (uint16_t) in bytes 2-3, position (int32_t) in bytes 4-7
   // Let's follow the description: speed bytes 2,3; position bytes 4,5,6,7
-  absl::Status status = packLittleEndian<uint16_t>(data, 2, max_speed);
-  if (!status.ok()) {
-    return status;
-  }
-  
-  status = packLittleEndian<int32_t>(data, 4, angle_setpoint);
-  if (!status.ok()) {
-    return status;
-  }
-
+  RETURN_IF_ERROR(packLittleEndian<uint16_t>(data, 2, max_speed));
+  RETURN_IF_ERROR(packLittleEndian<int32_t>(data, 4, angle_setpoint));
   return data;
 }
 
@@ -229,11 +203,7 @@ absl::StatusOr<std::array<uint8_t, 8>> createPositionControl3Frame(
       protocol::CMD_POSITION_CONTROL_3, 0, 0, 0, 0, 0, 0, 0};
   // Spin Direction (uint8_t) in byte 1, position (uint16_t) in bytes 4-5
   data[1] = static_cast<uint8_t>(direction);
-  absl::Status status = packLittleEndian<uint16_t>(data, 4, angle_setpoint);
-  if (!status.ok()) {
-    return status;
-  }
-
+  RETURN_IF_ERROR(packLittleEndian<uint16_t>(data, 4, angle_setpoint));
   return data;
 }
 
@@ -247,16 +217,8 @@ absl::StatusOr<std::array<uint8_t, 8>> createPositionControl4Frame(
   // position (uint16_t) in bytes 4-5
   data[1] = static_cast<uint8_t>(direction);
   
-  absl::Status status = packLittleEndian<uint16_t>(data, 2, max_speed);
-  if (!status.ok()) {
-    return status;
-  }
-  
-  status = packLittleEndian<uint16_t>(data, 4, angle_setpoint);
-  if (!status.ok()) {
-    return status;
-  }
-
+  RETURN_IF_ERROR(packLittleEndian<uint16_t>(data, 2, max_speed));
+  RETURN_IF_ERROR(packLittleEndian<uint16_t>(data, 4, angle_setpoint));
   return data;
 }
 
