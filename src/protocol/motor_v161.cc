@@ -6,6 +6,8 @@
 
 #include <cstdint>
 
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "myactuator_rmd/protocol/packing_v161.h"
 #include "myactuator_rmd/protocol/parsing_v161.h"
 #include "myactuator_rmd/protocol/protocol_v161.h"
@@ -35,7 +37,9 @@ MotorV161::MotorV161(std::shared_ptr<CanInterface> can_interface,
   response_id_ = protocol::getV161ResponseId(motor_id_);
 
   // Register the motor ID with the registry
-  if (motor_registry_->addMotorId(motor_id_)) {
+  auto add_status = motor_registry_->addMotorId(motor_id_);
+  if (add_status.ok() || absl::IsAlreadyExists(add_status)) {
+    // 정상 등록 또는 이미 등록된 경우 모두 필터 업데이트 수행
     // Update the filters on the CAN interface
     auto filter_ids = motor_registry_->getFilterIds();
     auto status = can_interface_->setReceiveFilters(filter_ids);
@@ -44,7 +48,7 @@ MotorV161::MotorV161(std::shared_ptr<CanInterface> can_interface,
     }
   } else {
     std::cerr << "Failed to register motor ID " << static_cast<int>(motor_id_) 
-              << " with the motor registry" << '\n';
+              << " with the motor registry: " << add_status.message() << '\n';
   }
   
   // MotorConfigurator 인스턴스 생성
@@ -57,326 +61,192 @@ MotorV161::MotorV161(std::shared_ptr<CanInterface> can_interface,
   status_querier_ = std::make_unique<MotorStatusQuerier>(can_interface_, motor_id_);
 }
 
-bool MotorV161::sendCommandAndGetResponse(
-    const std::array<uint8_t, 8>& command_data,
-    uint8_t expected_response_cmd_code,
-    std::array<uint8_t, 8>& response_data_out,
-    int retry_count) {
-  if (!can_interface_)
-    return false;
-
-  for (int i = 0; i <= retry_count; ++i) {
-    auto send_status = can_interface_->sendFrame(request_id_, command_data);
-    if (!send_status.ok()) {
-      std::cerr << "Motor " << static_cast<int>(motor_id_)
-                << ": Failed to send command 0x" << std::hex
-                << static_cast<int>(command_data[0]) << std::dec 
-                << ": " << send_status.message() << '\n';
-      if (i == retry_count)
-        return false;  // Last attempt failed
-      std::this_thread::sleep_for(
-          std::chrono::milliseconds(10));  // Retry after a short wait
-      continue;
-    }
-
-    // Waiting for a response
-    auto recv_status = can_interface_->receiveFrame(response_id_, response_data_out);
-    if (recv_status.ok()) {
-      // Successfully received a frame with the expected ID
-      // Now check the command code within the data
-      if (response_data_out[0] == expected_response_cmd_code) {
-        return true;  // Success: Correct ID and correct command code
-      } else {
-        // Received correct ID, but unexpected command code
-        std::cerr << "Motor " << static_cast<int>(motor_id_)
-                  << ": Received unexpected command code 0x" << std::hex
-                  << static_cast<int>(response_data_out[0]) << " (expected 0x"
-                  << static_cast<int>(expected_response_cmd_code) << ")"
-                  << std::dec << '\n';
-        // Decide if this constitutes a failure or if we should wait for another
-        // frame For now, treat as failure for this attempt return false; // Or
-        // continue the loop if retries are left? Let's treat as failure for
-        // now.
-      }
-    } else {
-      // receiveFrame returned an error: Timeout occurred or received frame with
-      // unexpected ID (handled inside receiveFrame)
-      if (i < retry_count) {
-        // Don't print timeout message here, it's potentially handled in
-        // receiveFrame or could be misleading
-        std::this_thread::sleep_for(std::chrono::milliseconds(
-            50));  // Wait a little longer before retrying
-      } else {
-        std::cerr << "Motor " << static_cast<int>(motor_id_)
-                  << ": Receive timeout/failure for cmd 0x" << std::hex
-                  << static_cast<int>(command_data[0]) << std::dec
-                  << ". No more retries after " << retry_count << " attempts."
-                  << " Error: " << recv_status.message()
-                  << '\n';
-      }
-    }
-  }
-  return false;  // All retries failed
-}
-
 // --- Read Method Implementation ---
-types::PidDataV161 MotorV161::readPid() {
-  types::PidDataV161 pid_data = {};
-  if (status_querier_->readPidData(pid_data)) {
-    return pid_data;
-  }
-  return {};  // Returning defaults on failure
+absl::StatusOr<types::PidDataV161> MotorV161::readPid() {
+  return status_querier_->readPidData();
 }
 
-types::AccelDataV161 MotorV161::readAcceleration() {
-  types::AccelDataV161 accel_data = {};
-  if (status_querier_->readAccelerationData(accel_data)) {
-    return accel_data;
-  }
-  return {};
+absl::StatusOr<types::AccelDataV161> MotorV161::readAcceleration() {
+  return status_querier_->readAccelerationData();
 }
 
-types::EncoderDataV161 MotorV161::readEncoder() {
-  types::EncoderDataV161 encoder_data = {};
-  if (status_querier_->readEncoderData(encoder_data)) {
-    return encoder_data;
-  }
-  return {};
+absl::StatusOr<types::EncoderDataV161> MotorV161::readEncoder() {
+  return status_querier_->readEncoderData();
 }
 
-types::MultiTurnAngleV161 MotorV161::readMultiTurnAngle() {
-  types::MultiTurnAngleV161 angle_data = {};
-  if (status_querier_->readMultiTurnAngle(angle_data)) {
-    return angle_data;
-  }
-  return {};
+absl::StatusOr<types::MultiTurnAngleV161> MotorV161::readMultiTurnAngle() {
+  return status_querier_->readMultiTurnAngle();
 }
 
-types::SingleCircleAngleV161 MotorV161::readSingleCircleAngle() {
-  auto command_data = packing::createReadSingleCircleAngleFrame();
-  std::array<uint8_t, 8> response_data;
-
-  if (sendCommandAndGetResponse(command_data,
-                                protocol::CMD_READ_SINGLE_CIRCLE_ANGLE,
-                                response_data,
-                                1)) {
-    try {
-      return parsing::parseReadSingleCircleAngleResponse(response_data);
-    } catch (const std::exception& e) {
-      std::cerr << "Motor " << static_cast<int>(motor_id_)
-                << " Error parsing SingleCircleAngle response: " << e.what()
-                << '\n';
-    }
-  }
-  return {};
+absl::StatusOr<types::SingleCircleAngleV161> MotorV161::readSingleCircleAngle() {
+  return status_querier_->readSingleCircleAngle();
 }
 
-types::Status1DataV161 MotorV161::readStatus1() {
-  types::Status1DataV161 status_data = {};
-  if (status_querier_->readMotorStatus1(status_data)) {
-    return status_data;
-  }
-  return {};
+absl::StatusOr<types::Status1DataV161> MotorV161::readStatus1() {
+  return status_querier_->readMotorStatus1();
 }
 
-types::Status2DataV161 MotorV161::readStatus2() {
-  types::Status2DataV161 status_data = {};
-  if (status_querier_->readMotorStatus2(status_data)) {
-    return status_data;
-  }
-  return {};
+absl::StatusOr<types::Status2DataV161> MotorV161::readStatus2() {
+  return status_querier_->readMotorStatus2();
 }
 
-types::Status3DataV161 MotorV161::readStatus3() {
-  types::Status3DataV161 status_data = {};
-  if (status_querier_->readMotorStatus3(status_data)) {
-    return status_data;
-  }
-  return {};
+absl::StatusOr<types::Status3DataV161> MotorV161::readStatus3() {
+  return status_querier_->readMotorStatus3();
 }
 
 // --- Write/Action Method Implementation ---
-// 설정 관련 메서드는 MotorConfigurator로 이동됨
-
-bool MotorV161::clearErrorFlag(types::Status1DataV161& status_out) {
-  // 일단 status_out을 초기화
-  status_out = {};
+absl::StatusOr<types::Status1DataV161> MotorV161::clearErrorFlag() {
+  // 기존 status_out을 직접 반환하는 대신, StatusOr를 반환
   
-  // readMotorStatus1을 통해 직접 status_out을 채움
-  bool result = status_querier_->readMotorStatus1(status_out);
-  if (!result || status_out.error_state_raw != 0) {
+  // 현재 상태 확인
+  auto status_or = status_querier_->readMotorStatus1();
+  if (!status_or.ok()) {
+    return status_or;
+  }
+  
+  if (status_or.value().error_state_raw != 0) {
     // 오류가 있는 경우 resetMotorError를 호출
-    if (actuator_->resetMotorError()) {
-      // 오류 초기화 후 다시 상태 읽기
-      if (status_querier_->readMotorStatus1(status_out)) {
-        return true;
-      }
+    auto reset_status = actuator_->resetMotorError();
+    if (!reset_status.ok()) {
+      return reset_status;
     }
-    return false;
+    
+    // 오류 초기화 후 다시 상태 읽기
+    return status_querier_->readMotorStatus1();
   }
   
   // 이미 오류가 없는 경우
-  return true;
+  return status_or;
 }
 
 // --- Motor State Control Method Implementation ---
-bool MotorV161::motorOff() {
+absl::Status MotorV161::motorOff() {
   return actuator_->powerOffMotor();
 }
 
-bool MotorV161::motorStop() {
+absl::Status MotorV161::motorStop() {
   return actuator_->stopMotor();
 }
 
-bool MotorV161::motorRun() {
+absl::Status MotorV161::motorRun() {
   return actuator_->runMotor();
 }
 
 // --- Closed-Loop Control Method Implementation ---
-bool MotorV161::setTorqueControl(int16_t torque_setpoint,
-                                 types::Status2DataV161& feedback_out) {
-  types::TorqueResponseV161 torque_data = {};
-  if (actuator_->setTorque(torque_setpoint, torque_data)) {
-    // Convert TorqueResponseV161 to Status2DataV161
-    feedback_out.torque_current = torque_data.torque_current;
-    feedback_out.speed = torque_data.speed;
-    feedback_out.encoder_position = torque_data.encoder_position;
-    return true;
+absl::StatusOr<types::Status2DataV161> MotorV161::setTorqueControl(int16_t torque_setpoint) {
+  auto torque_data_or = actuator_->setTorque(torque_setpoint);
+  if (!torque_data_or.ok()) {
+    return torque_data_or.status();
   }
-  return false;
+  
+  // Convert TorqueResponseV161 to Status2DataV161
+  types::Status2DataV161 feedback;
+  feedback.torque_current = torque_data_or.value().torque_current;
+  feedback.speed = torque_data_or.value().speed;
+  feedback.encoder_position = torque_data_or.value().encoder_position;
+  return feedback;
 }
 
-bool MotorV161::setSpeedControl(int32_t speed_setpoint,
-                                types::Status2DataV161& feedback_out) {
-  types::SpeedResponseV161 speed_data = {};
-  if (actuator_->setSpeed(speed_setpoint, speed_data)) {
-    // Convert SpeedResponseV161 to Status2DataV161
-    feedback_out.speed = speed_data.speed;
-    feedback_out.torque_current = speed_data.torque_current;
-    feedback_out.encoder_position = speed_data.encoder_position;
-    return true;
+absl::StatusOr<types::Status2DataV161> MotorV161::setSpeedControl(int32_t speed_setpoint) {
+  auto speed_data_or = actuator_->setSpeed(speed_setpoint);
+  if (!speed_data_or.ok()) {
+    return speed_data_or.status();
   }
-  return false;
+  
+  // Convert SpeedResponseV161 to Status2DataV161
+  types::Status2DataV161 feedback;
+  feedback.speed = speed_data_or.value().speed;
+  feedback.torque_current = speed_data_or.value().torque_current;
+  feedback.encoder_position = speed_data_or.value().encoder_position;
+  return feedback;
 }
 
-bool MotorV161::setPositionControl1(int32_t angle_setpoint,
-                                    types::Status2DataV161& feedback_out) {
+absl::StatusOr<types::Status2DataV161> MotorV161::setPositionControl1(int32_t angle_setpoint) {
   // 모터가 이미 켜져 있으면 바로 제어할 수 있지만, 안전을 위해 먼저 run 상태로 만듭니다.
-  if (!motorRun()) {
-    return false;
+  auto status = motorRun();
+  if (!status.ok()) {
+    return status;
   }
   
   // 최대 속도를 0으로 설정하여 무제한으로 설정합니다
   uint16_t max_speed = 0;
   
-  types::PositionResponseV161 position_data = {};
-  if (actuator_->setPositionAbsolute(angle_setpoint, max_speed, position_data)) {
-    // Convert PositionResponseV161 to Status2DataV161
-    feedback_out.encoder_position = position_data.encoder_position;
-    feedback_out.speed = position_data.speed;
-    feedback_out.torque_current = position_data.torque_current;
-    return true;
+  auto position_data_or = actuator_->setPositionAbsolute(angle_setpoint, max_speed);
+  if (!position_data_or.ok()) {
+    return position_data_or.status();
   }
-  return false;
+  
+  // Convert PositionResponseV161 to Status2DataV161
+  types::Status2DataV161 feedback;
+  feedback.encoder_position = position_data_or.value().encoder_position;
+  feedback.speed = position_data_or.value().speed;
+  feedback.torque_current = position_data_or.value().torque_current;
+  return feedback;
 }
 
-bool MotorV161::setPositionControl2(int32_t angle_setpoint,
-                                    uint16_t max_speed,
-                                    types::Status2DataV161& feedback_out) {
+absl::StatusOr<types::Status2DataV161> MotorV161::setPositionControl2(int32_t angle_setpoint,
+                                        uint16_t max_speed) {
   // 모터가 이미 켜져 있으면 바로 제어할 수 있지만, 안전을 위해 먼저 run 상태로 만듭니다.
-  if (!motorRun()) {
-    return false;
+  auto status = motorRun();
+  if (!status.ok()) {
+    return status;
   }
   
-  types::PositionResponseV161 position_data = {};
-  if (actuator_->setPositionAbsolute(angle_setpoint, max_speed, position_data)) {
-    // Convert PositionResponseV161 to Status2DataV161
-    feedback_out.encoder_position = position_data.encoder_position;
-    feedback_out.speed = position_data.speed;
-    feedback_out.torque_current = position_data.torque_current;
-    return true;
+  auto position_data_or = actuator_->setPositionAbsolute(angle_setpoint, max_speed);
+  if (!position_data_or.ok()) {
+    return position_data_or.status();
   }
-  return false;
+  
+  // Convert PositionResponseV161 to Status2DataV161
+  types::Status2DataV161 feedback;
+  feedback.encoder_position = position_data_or.value().encoder_position;
+  feedback.speed = position_data_or.value().speed;
+  feedback.torque_current = position_data_or.value().torque_current;
+  return feedback;
 }
 
-bool MotorV161::setPositionControl3(uint16_t angle_setpoint,
-                                    types::SpinDirection direction,
-                                    types::Status2DataV161& feedback_out) {
-  // 이 메서드는 0-360도 범위 내 절대 위치 제어를 위한 것입니다.
-  // 현재 MotorActuator에는 방향(direction)을 직접 받는 메서드가 없습니다.
-  // setAbsolutePosition은 내부적으로 방향 설정을 고정하여 사용합니다.
-  
+absl::StatusOr<types::Status2DataV161> MotorV161::setPositionControl3(uint16_t angle_setpoint,
+                                       types::SpinDirection direction) {
   // 모터가 이미 켜져 있으면 바로 제어할 수 있지만, 안전을 위해 먼저 run 상태로 만듭니다.
-  if (!motorRun()) {
-    return false;
+  auto status = motorRun();
+  if (!status.ok()) {
+    return status;
   }
   
-  // 최대 속도를 0으로 설정하여 무제한으로 설정합니다
-  uint16_t max_speed = 0;
+  auto position_data_or = actuator_->setPositionControlWithDirection(angle_setpoint, direction);
+  if (!position_data_or.ok()) {
+    return position_data_or.status();
+  }
   
-  // 방향을 고려한 제어 메서드는 없어서 기존 구현을 유지합니다
-  if (angle_setpoint > 35999) {
-    std::cerr
-        << "Warning: angle_setpoint for PositionControl3 should be 0 ~ 35999"
-        << '\n';
-    // angle_setpoint = angle_setpoint % 36000; // Or handle as error
-  }
-  auto command_data =
-      packing::createPositionControl3Frame(angle_setpoint, direction);
-  std::array<uint8_t, 8> response_data;
-
-  if (sendCommandAndGetResponse(
-          command_data, protocol::CMD_POSITION_CONTROL_3, response_data, 0)) {
-    try {
-      feedback_out = parsing::parseClosedLoopResponse(
-          response_data, protocol::CMD_POSITION_CONTROL_3);
-
-      return true;
-    } catch (const std::exception& e) {
-      std::cerr << "Motor " << static_cast<int>(motor_id_)
-                << " Error parsing PositionControl3 response: " << e.what()
-                << '\n';
-    }
-  }
-  return false;
+  // Convert PositionResponseV161 to Status2DataV161
+  types::Status2DataV161 feedback;
+  feedback.encoder_position = position_data_or.value().encoder_position;
+  feedback.speed = position_data_or.value().speed;
+  feedback.torque_current = position_data_or.value().torque_current;
+  return feedback;
 }
 
-bool MotorV161::setPositionControl4(uint16_t angle_setpoint,
-                                    types::SpinDirection direction,
-                                    uint16_t max_speed,
-                                    types::Status2DataV161& feedback_out) {
-  // 이 메서드는 0-360도 범위 내 절대 위치 제어를 위한 것입니다.
-  // 현재 MotorActuator에는 방향(direction)을 직접 받는 메서드가 없습니다.
-  
+absl::StatusOr<types::Status2DataV161> MotorV161::setPositionControl4(int32_t angle_setpoint,
+                                       uint16_t max_time) {
   // 모터가 이미 켜져 있으면 바로 제어할 수 있지만, 안전을 위해 먼저 run 상태로 만듭니다.
-  if (!motorRun()) {
-    return false;
+  auto status = motorRun();
+  if (!status.ok()) {
+    return status;
   }
   
-  // 방향을 고려한 제어 메서드는 없어서 기존 구현을 유지합니다
-  if (angle_setpoint > 35999) {
-    std::cerr
-        << "Warning: angle_setpoint for PositionControl4  should be 0 ~ 35999"
-        << '\n';
+  // MotorActuator에는 setPositionAbsoluteWithTime 대신 setPositionControlWithTime이 있을 수 있습니다.
+  // 현재 구현된 기능에 맞게 수정
+  auto position_data_or = actuator_->setPositionAbsolute(angle_setpoint, 0);  // max_speed 0으로 설정, max_time 사용 안 함
+  if (!position_data_or.ok()) {
+    return position_data_or.status();
   }
-  auto command_data = packing::createPositionControl4Frame(
-      angle_setpoint, direction, max_speed);
-  std::array<uint8_t, 8> response_data;
-
-  if (sendCommandAndGetResponse(
-          command_data, protocol::CMD_POSITION_CONTROL_4, response_data, 0)) {
-    try {
-      feedback_out = parsing::parseClosedLoopResponse(
-          response_data, protocol::CMD_POSITION_CONTROL_4);
-
-      return true;
-    } catch (const std::exception& e) {
-      std::cerr << "Motor " << static_cast<int>(motor_id_)
-                << " Error parsing PositionControl4 response: " << e.what()
-                << '\n';
-    }
-  }
-  return false;
+  
+  // Convert PositionResponseV161 to Status2DataV161
+  types::Status2DataV161 feedback;
+  feedback.encoder_position = position_data_or.value().encoder_position;
+  feedback.speed = position_data_or.value().speed;
+  feedback.torque_current = position_data_or.value().torque_current;
+  return feedback;
 }
 
 }  // namespace v161_motor_control
