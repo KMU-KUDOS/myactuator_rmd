@@ -3,6 +3,8 @@
 #include <algorithm>  // for std::find
 #include <iostream>
 
+#include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "myactuator_rmd/protocol/protocol_v161.h"  // for getV161ResponseId
 
 namespace v161_motor_control {
@@ -11,11 +13,11 @@ MotorRegistry::MotorRegistry() {
   // Initialize empty registry
 }
 
-bool MotorRegistry::addMotorId(uint8_t motor_id) {
+absl::Status MotorRegistry::addMotorId(uint8_t motor_id) {
   if (motor_id < 1 || motor_id > 32) {
-    std::cerr << "Invalid motor ID: " << static_cast<int>(motor_id)
-              << ". Must be between 1 & 32" << '\n';
-    return false;
+    return absl::InvalidArgumentError(
+        absl::StrCat("Invalid motor ID: ", static_cast<int>(motor_id),
+                    ". Must be between 1 & 32"));
   }
 
   // Check if motor_id already exists
@@ -23,14 +25,12 @@ bool MotorRegistry::addMotorId(uint8_t motor_id) {
                 registered_motor_ids_.end(),
                 motor_id) == registered_motor_ids_.end()) {
     registered_motor_ids_.push_back(motor_id);
-    std::cout << "Motor ID " << static_cast<int>(motor_id)
-              << " registered." << '\n';
+    return absl::OkStatus();
   } else {
-    std::cout << "Motor ID " << static_cast<int>(motor_id)
-              << " is already registered" << '\n';
+    return absl::AlreadyExistsError(
+        absl::StrCat("Motor ID ", static_cast<int>(motor_id),
+                    " is already registered"));
   }
-  
-  return true;
 }
 
 std::vector<uint8_t> MotorRegistry::getRegisteredMotorIds() const {
