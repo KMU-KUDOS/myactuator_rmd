@@ -47,7 +47,7 @@ CanInterface::~CanInterface() {
 }
 
 absl::Status CanInterface::sendFrame(uint32_t can_id,
-                           const std::array<uint8_t, 8>& data) {
+                             const std::array<uint8_t, 8>& data) {
   if (!can_node_) {
     return absl::UnavailableError("CAN node is not initialized. Cannot send frame");
   }
@@ -82,7 +82,7 @@ absl::Status CanInterface::sendFrame(uint32_t can_id,
 }
 
 absl::Status CanInterface::receiveFrame(uint32_t expected_can_id,
-                              std::array<uint8_t, 8>& data_out) {
+                                std::array<uint8_t, 8>& data_out) {
   if (!can_node_) {
     return absl::UnavailableError("CAN node is not initialized. Cannot receive frame");
   }

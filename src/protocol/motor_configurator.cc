@@ -170,7 +170,7 @@ absl::StatusOr<uint16_t> MotorConfigurator::writeEncoderOffset(uint16_t offset) 
   absl::StatusOr<uint16_t> written_offset = parsing::parseWriteEncoderOffsetResponse(response_or.value());
   if (!written_offset.ok()) {
     return written_offset.status();
-  }
+    }
   
   return written_offset;
 }
@@ -195,7 +195,7 @@ absl::StatusOr<uint16_t> MotorConfigurator::writePositionAsZero() {
   absl::StatusOr<uint16_t> written_offset = parsing::parseWritePosAsZeroRomResponse(response_or.value());
   if (!written_offset.ok()) {
     return written_offset.status();
-  }
+    }
   
   return written_offset;
 }

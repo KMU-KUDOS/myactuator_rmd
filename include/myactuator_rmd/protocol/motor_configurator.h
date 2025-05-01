@@ -142,8 +142,8 @@ class MotorConfigurator {
    */
   absl::StatusOr<std::array<uint8_t, 8>> sendCommandAndGetResponse(
       const std::array<uint8_t, 8>& command_data,
-      uint8_t expected_response_cmd_code,
-      int retry_count = 0);
+                                 uint8_t expected_response_cmd_code,
+                                 int retry_count = 0);
 };
 
 }  // namespace v161_motor_control

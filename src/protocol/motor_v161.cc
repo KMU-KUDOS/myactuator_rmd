@@ -109,7 +109,7 @@ absl::StatusOr<types::Status1DataV161> MotorV161::clearErrorFlag() {
     auto reset_status = actuator_->resetMotorError();
     if (!reset_status.ok()) {
       return reset_status;
-    }
+      }
     
     // 오류 초기화 후 다시 상태 읽기
     return status_querier_->readMotorStatus1();
