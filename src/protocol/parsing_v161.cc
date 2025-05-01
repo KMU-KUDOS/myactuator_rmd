@@ -8,6 +8,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "myactuator_rmd/protocol/protocol_v161.h"  // Command code
 
 namespace v161_motor_control::parsing {
@@ -49,8 +50,8 @@ absl::StatusOr<types::PidDataV161> parseReadPidResponse(const std::array<uint8_t
   if (data[0] != protocol::CMD_READ_PID) {
     return absl::InvalidArgumentError(
         absl::StrCat("Invalid command for PID response. Expected: 0x", 
-                   std::hex, static_cast<int>(protocol::CMD_READ_PID),
-                   ", Got: 0x", static_cast<int>(data[0])));
+                   absl::Hex(protocol::CMD_READ_PID),
+                   ", Got: 0x", absl::Hex(data[0])));
   }
   types::PidDataV161 result;
 
@@ -69,8 +70,8 @@ absl::StatusOr<types::AccelDataV161> parseReadAccelResponse(
   if (data[0] != protocol::CMD_READ_ACCEL) {
     return absl::InvalidArgumentError(
         absl::StrCat("Invalid command for Accel response. Expected: 0x", 
-                   std::hex, static_cast<int>(protocol::CMD_READ_ACCEL),
-                   ", Got: 0x", static_cast<int>(data[0])));
+                   absl::Hex(protocol::CMD_READ_ACCEL),
+                   ", Got: 0x", absl::Hex(data[0])));
   }
   types::AccelDataV161 result;
 
@@ -88,8 +89,8 @@ absl::StatusOr<types::EncoderDataV161> parseReadEncoderResponse(
   if (data[0] != protocol::CMD_READ_ENCODER) {
     return absl::InvalidArgumentError(
         absl::StrCat("Invalid command code for Encoder response. Expected: 0x",
-                   std::hex, static_cast<int>(protocol::CMD_READ_ENCODER),
-                   ", Got: 0x", static_cast<int>(data[0])));
+                   absl::Hex(protocol::CMD_READ_ENCODER),
+                   ", Got: 0x", absl::Hex(data[0])));
   }
   types::EncoderDataV161 result;
 
@@ -119,8 +120,8 @@ absl::StatusOr<types::MultiTurnAngleV161> parseReadMultiTurnAngleResponse(
   if (data[0] != protocol::CMD_READ_MULTI_TURN_ANGLE) {
     return absl::InvalidArgumentError(
         absl::StrCat("Invalid command code for MultiTurnAngle response. Expected: 0x",
-                   std::hex, static_cast<int>(protocol::CMD_READ_MULTI_TURN_ANGLE),
-                   ", Got: 0x", static_cast<int>(data[0])));
+                   absl::Hex(protocol::CMD_READ_MULTI_TURN_ANGLE),
+                   ", Got: 0x", absl::Hex(data[0])));
   }
   types::MultiTurnAngleV161 result;
 
@@ -147,8 +148,8 @@ absl::StatusOr<types::SingleCircleAngleV161> parseReadSingleCircleAngleResponse(
   if (data[0] != protocol::CMD_READ_SINGLE_CIRCLE_ANGLE) {
     return absl::InvalidArgumentError(
         absl::StrCat("Invalid command for SingleCircleAngle response. Expected: 0x",
-                   std::hex, static_cast<int>(protocol::CMD_READ_SINGLE_CIRCLE_ANGLE),
-                   ", Got: 0x", static_cast<int>(data[0])));
+                   absl::Hex(protocol::CMD_READ_SINGLE_CIRCLE_ANGLE),
+                   ", Got: 0x", absl::Hex(data[0])));
   }
   types::SingleCircleAngleV161 result;
 
@@ -166,8 +167,8 @@ absl::StatusOr<types::Status1DataV161> parseReadStatus1Response(
   if (data[0] != protocol::CMD_READ_STATUS_1) {
     return absl::InvalidArgumentError(
         absl::StrCat("Invalid command code for Status1 response. Expected: 0x",
-                   std::hex, static_cast<int>(protocol::CMD_READ_STATUS_1),
-                   ", Got: 0x", static_cast<int>(data[0])));
+                   absl::Hex(protocol::CMD_READ_STATUS_1),
+                   ", Got: 0x", absl::Hex(data[0])));
   }
   types::Status1DataV161 result;
 
@@ -193,8 +194,8 @@ absl::StatusOr<types::Status2DataV161> parseReadStatus2Response(
   if (data[0] != protocol::CMD_READ_STATUS_2) {
     return absl::InvalidArgumentError(
         absl::StrCat("Invalid command code for Status2 response. Expected: 0x",
-                   std::hex, static_cast<int>(protocol::CMD_READ_STATUS_2),
-                   ", Got: 0x", static_cast<int>(data[0])));
+                   absl::Hex(protocol::CMD_READ_STATUS_2),
+                   ", Got: 0x", absl::Hex(data[0])));
   }
   types::Status2DataV161 result;
 
@@ -230,8 +231,8 @@ absl::StatusOr<types::Status3DataV161> parseReadStatus3Response(
   if (data[0] != protocol::CMD_READ_STATUS_3) {
     return absl::InvalidArgumentError(
         absl::StrCat("Invalid command code for Status3 response. Expected: 0x",
-                   std::hex, static_cast<int>(protocol::CMD_READ_STATUS_3),
-                   ", Got: 0x", static_cast<int>(data[0])));
+                   absl::Hex(protocol::CMD_READ_STATUS_3),
+                   ", Got: 0x", absl::Hex(data[0])));
   }
   types::Status3DataV161 result;
 
@@ -261,8 +262,8 @@ absl::StatusOr<uint16_t> parseWriteEncoderOffsetResponse(const std::array<uint8_
   if (data[0] != protocol::CMD_WRITE_ENCODER_OFFSET) {
     return absl::InvalidArgumentError(
         absl::StrCat("Invalid command code for WriteEncoderOffset response. Expected: 0x",
-                   std::hex, static_cast<int>(protocol::CMD_WRITE_ENCODER_OFFSET),
-                   ", Got: 0x", static_cast<int>(data[0])));
+                   absl::Hex(protocol::CMD_WRITE_ENCODER_OFFSET),
+                   ", Got: 0x", absl::Hex(data[0])));
   }
   
   auto offset_or = unpackLittleEndian<uint16_t>(data, 6);
@@ -276,8 +277,8 @@ absl::StatusOr<uint16_t> parseWritePosAsZeroRomResponse(const std::array<uint8_t
   if (data[0] != protocol::CMD_WRITE_POS_AS_ZERO_ROM) {
     return absl::InvalidArgumentError(
         absl::StrCat("Invalid command code for WritePosAsZeroRom response. Expected: 0x",
-                   std::hex, static_cast<int>(protocol::CMD_WRITE_POS_AS_ZERO_ROM),
-                   ", Got: 0x", static_cast<int>(data[0])));
+                   absl::Hex(protocol::CMD_WRITE_POS_AS_ZERO_ROM),
+                   ", Got: 0x", absl::Hex(data[0])));
   }
   
   auto offset_or = unpackLittleEndian<uint16_t>(data, 6);
@@ -292,8 +293,8 @@ absl::StatusOr<types::Status1DataV161> parseClearErrorFlagResponse(
   if (data[0] != protocol::CMD_CLEAR_ERROR) {
     return absl::InvalidArgumentError(
         absl::StrCat("Invalid command code for ClearErrorFlag response. Expected: 0x",
-                   std::hex, static_cast<int>(protocol::CMD_CLEAR_ERROR),
-                   ", Got: 0x", static_cast<int>(data[0])));
+                   absl::Hex(protocol::CMD_CLEAR_ERROR),
+                   ", Got: 0x", absl::Hex(data[0])));
   }
 
   // 직접 Status1 데이터를 파싱합니다 (parseReadStatus1Response의 내부 구현과
@@ -324,8 +325,8 @@ absl::StatusOr<types::Status2DataV161> parseClosedLoopResponse(
   if (data[0] != expected_cmd_code) {
     return absl::InvalidArgumentError(
         absl::StrCat("Invalid command code for closed-loop response. Expected: 0x",
-                   std::hex, static_cast<int>(expected_cmd_code),
-                   ", Got: 0x", static_cast<int>(data[0])));
+                   absl::Hex(expected_cmd_code),
+                   ", Got: 0x", absl::Hex(data[0])));
   }
   types::Status2DataV161 result;
 
