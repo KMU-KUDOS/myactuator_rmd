@@ -31,136 +31,173 @@ MotorConfigurator::~MotorConfigurator() {
   // 소멸자 구현
 }
 
-bool MotorConfigurator::sendCommandAndGetResponse(
+absl::StatusOr<std::array<uint8_t, 8>> MotorConfigurator::sendCommandAndGetResponse(
     const std::array<uint8_t, 8>& command_data,
     uint8_t expected_response_cmd_code,
-    std::array<uint8_t, 8>& response_data_out,
     int retry_count) {
-  if (!can_interface_)
-    return false;
+  if (!can_interface_) {
+    return absl::InternalError("CAN interface is null");
+  }
 
   for (int i = 0; i <= retry_count; ++i) {
     auto send_status = can_interface_->sendFrame(request_id_, command_data);
     if (!send_status.ok()) {
-      std::cerr << "Motor " << static_cast<int>(motor_id_)
-                << ": Failed to send command 0x" << std::hex
-                << static_cast<int>(command_data[0]) << std::dec 
-                << ": " << send_status.message() << '\n';
-      if (i == retry_count)
-        return false;  // Last attempt failed
+      // 마지막 시도에서 실패한 경우 상태를 반환하고, 그렇지 않으면 재시도
+      if (i == retry_count) {
+        return absl::Status(
+            send_status.code(),
+            absl::StrCat("Motor ", static_cast<int>(motor_id_),
+                        ": Failed to send command 0x", absl::Hex(command_data[0]),
+                        ": ", send_status.message()));
+      }
       std::this_thread::sleep_for(
           std::chrono::milliseconds(10));  // Retry after a short wait
       continue;
     }
 
-    // Waiting for a response
-    auto recv_status = can_interface_->receiveFrame(response_id_, response_data_out);
+    // 응답 대기
+    std::array<uint8_t, 8> response_data;
+    auto recv_status = can_interface_->receiveFrame(response_id_, response_data);
     if (recv_status.ok()) {
-      // Successfully received a frame with the expected ID
-      // Now check the command code within the data
-      if (response_data_out[0] == expected_response_cmd_code) {
-        return true;  // Success: Correct ID and correct command code
+      // 성공적으로 기대 ID의 프레임을 수신함
+      // 이제 데이터 내의 명령 코드 확인
+      if (response_data[0] == expected_response_cmd_code) {
+        return response_data;  // 성공: 올바른 ID와 명령 코드
       } else {
-        // Received correct ID, but unexpected command code
-        std::cerr << "Motor " << static_cast<int>(motor_id_)
-                  << ": Received unexpected command code 0x" << std::hex
-                  << static_cast<int>(response_data_out[0]) << " (expected 0x"
-                  << static_cast<int>(expected_response_cmd_code) << ")"
-                  << std::dec << '\n';
-        // 현재 시도를 실패로 처리
+        // 올바른 ID를 받았지만 예상치 못한 명령 코드
+        // 현재 시도를 실패로 처리하고 다음 시도로 계속
+        // 로그 대신 마지막 시도가 아니면 그냥 다음 반복으로 진행
       }
     } else {
-      // receiveFrame returned an error: 타임아웃 발생 또는 예상치 않은 ID의 프레임 수신
+      // receiveFrame이 오류 반환: 타임아웃 또는 예상치 못한 ID의 프레임 수신
       if (i < retry_count) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));  // 재시도 전 대기
       } else {
-        std::cerr << "Motor " << static_cast<int>(motor_id_)
-                  << ": Receive timeout/failure for cmd 0x" << std::hex
-                  << static_cast<int>(command_data[0]) << std::dec
-                  << ". No more retries after " << retry_count << " attempts."
-                  << " Error: " << recv_status.message()
-                  << '\n';
+        // 마지막 시도에서 실패
+        return absl::Status(
+            recv_status.code(),
+            absl::StrCat("Motor ", static_cast<int>(motor_id_),
+                        ": Receive timeout/failure for cmd 0x", absl::Hex(command_data[0]),
+                        ". No more retries after ", retry_count, " attempts. Error: ",
+                        recv_status.message()));
       }
     }
   }
-  return false;  // 모든 재시도 실패
+  
+  // 모든 시도 실패 시
+  return absl::DeadlineExceededError(absl::StrCat(
+      "Motor ", static_cast<int>(motor_id_),
+      ": Failed to get valid response for command 0x", absl::Hex(command_data[0]),
+      " after ", retry_count + 1, " attempts"));
 }
 
-bool MotorConfigurator::writePidToRam(const types::PidDataV161& pid_data) {
-  auto command_data = packing::createWritePidRamFrame(pid_data);
-  std::array<uint8_t, 8> response_data;
-
-  // 쓰기 명령의 응답은 요청과 동일한 데이터(Echo)
-  if (sendCommandAndGetResponse(
-          command_data, protocol::CMD_WRITE_PID_RAM, response_data, 1)) {
-    return response_data == command_data;
+absl::Status MotorConfigurator::writePidToRam(const types::PidDataV161& pid_data) {
+  absl::StatusOr<std::array<uint8_t, 8>> command_data_or = packing::createWritePidRamFrame(pid_data);
+  if (!command_data_or.ok()) {
+    return command_data_or.status();
   }
-  return false;
+  
+  auto response_or = sendCommandAndGetResponse(
+      command_data_or.value(), protocol::CMD_WRITE_PID_RAM, 1);
+  if (!response_or.ok()) {
+    return response_or.status();
+  }
+  
+  // 쓰기 명령의 응답은 요청과 동일한 데이터(Echo) 확인
+  if (response_or.value() != command_data_or.value()) {
+    return absl::InternalError("Response does not match command data (echo verification failed)");
+  }
+  
+  return absl::OkStatus();
 }
 
-bool MotorConfigurator::writePidToRom(const types::PidDataV161& pid_data) {
+absl::Status MotorConfigurator::writePidToRom(const types::PidDataV161& pid_data) {
   std::cout << "경고: ROM에 PID 쓰기 (0x32). 빈번한 쓰기는 칩 수명에 영향을 줄 수 있습니다."
             << '\n';
-  auto command_data = packing::createWritePidRomFrame(pid_data);
-  std::array<uint8_t, 8> response_data;
-
-  if (sendCommandAndGetResponse(
-          command_data, protocol::CMD_WRITE_PID_ROM, response_data, 1)) {
-    return response_data == command_data;
+  
+  absl::StatusOr<std::array<uint8_t, 8>> command_data_or = packing::createWritePidRomFrame(pid_data);
+  if (!command_data_or.ok()) {
+    return command_data_or.status();
   }
-  return false;
+  
+  auto response_or = sendCommandAndGetResponse(
+      command_data_or.value(), protocol::CMD_WRITE_PID_ROM, 1);
+  if (!response_or.ok()) {
+    return response_or.status();
+  }
+  
+  // 쓰기 명령의 응답은 요청과 동일한 데이터(Echo) 확인
+  if (response_or.value() != command_data_or.value()) {
+    return absl::InternalError("Response does not match command data (echo verification failed)");
+  }
+  
+  return absl::OkStatus();
 }
 
-bool MotorConfigurator::writeAccelerationToRam(const types::AccelDataV161& accel_data) {
-  auto command_data = packing::createWriteAccelRamFrame(accel_data);
-  std::array<uint8_t, 8> response_data;
-
-  if (sendCommandAndGetResponse(
-          command_data, protocol::CMD_WRITE_ACCEL_RAM, response_data, 1)) {
-    return response_data == command_data;
+absl::Status MotorConfigurator::writeAccelerationToRam(const types::AccelDataV161& accel_data) {
+  absl::StatusOr<std::array<uint8_t, 8>> command_data_or = packing::createWriteAccelRamFrame(accel_data);
+  if (!command_data_or.ok()) {
+    return command_data_or.status();
   }
-  return false;
+  
+  auto response_or = sendCommandAndGetResponse(
+      command_data_or.value(), protocol::CMD_WRITE_ACCEL_RAM, 1);
+  if (!response_or.ok()) {
+    return response_or.status();
+  }
+  
+  // 쓰기 명령의 응답은 요청과 동일한 데이터(Echo) 확인
+  if (response_or.value() != command_data_or.value()) {
+    return absl::InternalError("Response does not match command data (echo verification failed)");
+  }
+  
+  return absl::OkStatus();
 }
 
-bool MotorConfigurator::writeEncoderOffset(uint16_t offset, uint16_t& written_offset_out) {
-  auto command_data = packing::createWriteEncoderOffsetFrame(offset);
-  std::array<uint8_t, 8> response_data;
-
-  if (sendCommandAndGetResponse(
-          command_data, protocol::CMD_WRITE_ENCODER_OFFSET, response_data, 1)) {
-    try {
-      written_offset_out = parsing::parseWriteEncoderOffsetResponse(response_data);
-      return true;
-    } catch (const std::exception& e) {
-      std::cerr << "Motor " << static_cast<int>(motor_id_)
-                << " Error parsing WriteEncoderOffset response: " << e.what()
-                << '\n';
-    }
+absl::StatusOr<uint16_t> MotorConfigurator::writeEncoderOffset(uint16_t offset) {
+  absl::StatusOr<std::array<uint8_t, 8>> command_data_or = packing::createWriteEncoderOffsetFrame(offset);
+  if (!command_data_or.ok()) {
+    return command_data_or.status();
   }
-  return false;
+  
+  auto response_or = sendCommandAndGetResponse(
+      command_data_or.value(), protocol::CMD_WRITE_ENCODER_OFFSET, 1);
+  if (!response_or.ok()) {
+    return response_or.status();
+  }
+  
+  // 응답 데이터 파싱
+  absl::StatusOr<uint16_t> written_offset = parsing::parseWriteEncoderOffsetResponse(response_or.value());
+  if (!written_offset.ok()) {
+    return written_offset.status();
+  }
+  
+  return written_offset;
 }
 
-bool MotorConfigurator::writePositionAsZero(uint16_t& written_offset_out) {
+absl::StatusOr<uint16_t> MotorConfigurator::writePositionAsZero() {
   std::cout << "경고: 현재 위치를 ROM에 0으로 쓰기 (0x19). "
                "재시작이 필요합니다. 빈번한 쓰기는 칩 수명에 영향을 줄 수 있습니다."
             << '\n';
-  auto command_data = packing::createWritePosAsZeroRomFrame();
-  std::array<uint8_t, 8> response_data;
-
-  if (sendCommandAndGetResponse(command_data,
-                                protocol::CMD_WRITE_POS_AS_ZERO_ROM,
-                                response_data,
-                                1)) {
-    try {
-      written_offset_out = parsing::parseWritePosAsZeroRomResponse(response_data);
-      return true;
-    } catch (const std::exception& e) {
-      std::cerr << "Motor " << static_cast<int>(motor_id_)
-                << " Error parsing WritePosAsZero response: " << e.what()
-                << '\n';
-    }
+  
+  absl::StatusOr<std::array<uint8_t, 8>> command_data_or = packing::createWritePosAsZeroRomFrame();
+  if (!command_data_or.ok()) {
+    return command_data_or.status();
   }
-  return false;
+  
+  auto response_or = sendCommandAndGetResponse(
+      command_data_or.value(), protocol::CMD_WRITE_POS_AS_ZERO_ROM, 1);
+  if (!response_or.ok()) {
+    return response_or.status();
+  }
+  
+  // 응답 데이터 파싱
+  absl::StatusOr<uint16_t> written_offset = parsing::parseWritePosAsZeroRomResponse(response_or.value());
+  if (!written_offset.ok()) {
+    return written_offset.status();
+  }
+  
+  return written_offset;
 }
 
 }  // namespace v161_motor_control 
