@@ -1,0 +1,123 @@
+# Google C/C++ Code Style settings
+# https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+# Based on Google Style and project instructions (@instructions.mdc)
+
+Language: Cpp
+BasedOnStyle: Google
+AccessModifierOffset: -2
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignEscapedNewlines: Left
+AlignOperands: true
+AlignTrailingComments: true
+AllowAllArgumentsOnNextLine: true
+AllowAllConstructorInitializersOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortBlocksOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: None
+AllowShortLambdasOnASingleLine: Inline
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakAfterReturnType: None
+AlwaysBreakBeforeMultilineStrings: false
+AlwaysBreakTemplateDeclarations: Yes
+BinPackArguments: true
+BinPackParameters: true
+BreakBeforeBinaryOperators: None
+BreakBeforeBraces: Attach
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializersBeforeComma: false
+BreakConstructorInitializers: BeforeColon
+BreakStringLiterals: true
+ColumnLimit: 80
+CompactNamespaces: false
+ConstructorInitializerAllOnOneLineOrOnePerLine: false
+ConstructorInitializerIndentWidth: 4
+ContinuationIndentWidth: 4
+Cpp11BracedListStyle: false
+DerivePointerAlignment: false
+DisableFormat: false
+ExperimentalAutoDetectBinPacking: false
+EmptyLineBeforeAccessModifier: LogicalBlock
+FixNamespaceComments: true
+ForEachMacros:
+  - foreach
+  - Q_FOREACH
+  - BOOST_FOREACH
+IncludeBlocks: Preserve
+IncludeCategories:
+  - Regex: '^"<framework\w*\.\w*"$'
+    Priority: 1
+  - Regex: '^"<.*\.h"$'
+    Priority: 2
+  - Regex: '^<.*>'
+    Priority: 3
+  - Regex: '.*'
+    Priority: 4
+IncludeIsMainRegex: '(Test)?(tests)?\.cc$'
+IndentCaseLabels: false
+IndentPPDirectives: None
+IndentWrappedFunctionNames: false
+JavaScriptQuotes: Leave
+JavaScriptWrapImports: Leave
+KeepEmptyLinesAtTheStartOfBlocks: false
+MacroBlockBegin: ''
+MacroBlockEnd: ''
+MaxEmptyLinesToKeep: 1
+NamespaceIndentation: None
+ObjCBlockIndentWidth: 2
+ObjCSpaceAfterProperty: false
+ObjCSpaceBeforeProtocolList: true
+PointerAlignment: Left
+ReflowComments: true
+# SeparateDefinitionBlocks: Always   # Only support since clang-format 14
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: true
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceBeforeSquareBrackets: false
+SpaceInEmptyParentheses: false
+SpacesBeforeTrailingComments: 2
+SpacesInAngles: false
+SpacesInContainerLiterals: false
+SpacesInCStyleCastParentheses: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+Standard: Cpp11
+TabWidth: 2
+UseTab: Never
+
+# Include sorting (Aligned with @instructions.mdc)
+SortIncludes: true
+SortUsingDeclarations: true
+
+# Include Categories as per @instructions.mdc
+IncludeCategories:
+  # 1. Related header (highest priority)
+  - Regex:           '^"[^/]*\.h"'
+    Priority:        1
+  # 2. C system headers
+  - Regex:           '^<.*\.h>'
+    Priority:        2
+  # 3. C++ standard library headers
+  - Regex:           '^<(algorithm|array|bitset|chrono|codecvt|complex|condition_variable|deque|exception|filesystem|forward_list|fstream|functional|future|initializer_list|iomanip|ios|iosfwd|iostream|istream|iterator|limits|list|locale|map|memory|mutex|new|numeric|optional|ostream|queue|random|ratio|regex|set|shared_mutex|sstream|stack|stdexcept|streambuf|string|string_view|system_error|thread|tuple|type_traits|typeindex|typeinfo|unordered_map|unordered_set|utility|valarray|variant|vector)>'
+    Priority:        3
+  # 4. Abseil headers
+  - Regex:           '^"absl/'
+    Priority:        4
+  # 5. Other library headers (OpenCV, yaml-cpp, etc.)
+  - Regex:           '^<'
+    Priority:        5
+  # 6. Project headers (lowest priority)
+  - Regex:           '^"'
+    Priority:        6
+
+# Force braces for control statements
+# InsertBraces: true
