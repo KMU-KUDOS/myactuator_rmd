@@ -35,20 +35,9 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(concurrentqueue)
 
 # Library definition for the core C++ library
-# Placeholder source files - these will be created later
-file(GLOB_RECURSE LIB_SRC "src/*.cpp") # This will be empty for now
 add_library(myactuator_rmd_lib SHARED
-  # Add source files here once they exist, e.g., src/my_file.cpp
-  # For now, if LIB_SRC is empty, this might cause issues.
-  # Consider adding a dummy source file or conditional compilation for now.
-  # Or, more simply, list expected files:
-  # src/can_interface.cpp 
-  # src/rmd_motor.cpp
-  # src/protocol_v1_61.cpp
-  # For now, let's assume placeholder files will be added to src/ to avoid build errors.
-  # If src/ is empty, CMake might complain or create an empty library.
-  # For a robust setup, create placeholder .cpp files in src/ later.
-  ${LIB_SRC} 
+  src/core/can_interface.cc
+  # Add other source files here as they are created
 )
 
 target_include_directories(myactuator_rmd_lib
@@ -95,7 +84,7 @@ install(TARGETS myactuator_rmd_lib
 # Install public headers from the include/myactuator_rmd directory
 install(DIRECTORY include/myactuator_rmd/
   DESTINATION include/myactuator_rmd
-  FILES_MATCHING PATTERN "*.hpp" PATTERN "*.h"
+  FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
 )
 
 # Install launch files
