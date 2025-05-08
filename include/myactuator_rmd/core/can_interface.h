@@ -3,12 +3,12 @@
 
 #include <string>
 #include <atomic>
-#include <chrono>
 
 #include "myactuator_rmd/core/can_frame.h"
+
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-
+#include "absl/time/time.h"
 namespace myactuator_rmd::core
 {
 
@@ -31,8 +31,8 @@ public:
      */
     explicit CanInterface(
         std::string interface_name,
-        std::chrono::milliseconds default_receive_timeout = std::chrono::milliseconds(10),
-        std::chrono::milliseconds default_send_timeout = std::chrono::milliseconds(10));
+        absl::Duration default_receive_timeout = absl::Milliseconds(10),
+        absl::Duration default_send_timeout = absl::Milliseconds(10));
 
     /**
      * @brief Destructor. Automatically closes the interface if it is open.
@@ -69,44 +69,48 @@ public:
      *
      * @return True if the interface is open and the socket is valid, false otherwise.
      */
-    bool isOpen() const noexcept;
+    bool is_open() const noexcept;
 
     /**
      * @brief Sends a CAN frame.
      *
      * Attempts to send the given frame within the specified timeout.
-     * If timeout is negative, the default send timeout is used.
+     * If timeout is negative (or absl::InfiniteDuration), the default send timeout is used.
+     * A zero timeout means non-blocking.
      *
      * @param frame The CanFrame to send.
      * @param timeout The maximum time to wait for the send operation to complete.
+     *                Use absl::Milliseconds(-1) or similar for default timeout.
      * @return absl::OkStatus() on success, or an error status (e.g., timeout, socket error).
      */
-    absl::Status sendFrame(const CanFrame& frame,
-                           std::chrono::milliseconds timeout = std::chrono::milliseconds(-1));
+    absl::Status send_frame(const CanFrame& frame,
+                           absl::Duration timeout = absl::Milliseconds(-1));
 
     /**
      * @brief Receives a CAN frame.
      *
      * Attempts to receive a frame within the specified timeout.
-     * If timeout is negative, the default receive timeout is used.
+     * If timeout is negative (or absl::InfiniteDuration), the default receive timeout is used.
+     * A zero timeout means non-blocking.
      *
      * @param timeout The maximum time to wait for a frame to be received.
+     *                Use absl::Milliseconds(-1) or similar for default timeout.
      * @return An absl::StatusOr containing the received CanFrame on success,
      *         or an error status (e.g., timeout, socket error, received error frame).
      */
-    absl::StatusOr<CanFrame> receiveFrame(
-        std::chrono::milliseconds timeout = std::chrono::milliseconds(-1));
+    absl::StatusOr<CanFrame> receive_frame(
+        absl::Duration timeout = absl::Milliseconds(-1));
 
 private:
     int socket_fd_{-1};                 // Socket file descriptor, -1 if closed.
     const std::string interface_name_; // Name of the CAN interface (e.g., "can0").
     std::atomic<bool> is_open_{false}; // Atomic flag indicating if the interface is open.
 
-    const std::chrono::milliseconds default_receive_timeout_;
-    const std::chrono::milliseconds default_send_timeout_;
+    const absl::Duration default_receive_timeout_;
+    const absl::Duration default_send_timeout_;
 
     // Potential helper methods for internal use (implementation in .cpp)
-    absl::Status checkSocketError() const;
+    absl::Status check_socket_error() const;
 };
 
 } // namespace myactuator_rmd::core
