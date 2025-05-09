@@ -37,6 +37,7 @@ FetchContent_MakeAvailable(concurrentqueue)
 # Library definition for the core C++ library
 add_library(myactuator_rmd_lib SHARED
   src/core/can_interface.cc
+  src/protocol/message_packer.cc
   # Add other source files here as they are created
 )
 
