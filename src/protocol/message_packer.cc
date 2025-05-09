@@ -164,6 +164,85 @@ core::CanFrame MessagePacker::pack_read_firmware_version_command(uint8_t motor_i
     return create_command_frame(motor_id, 0x12);
 }
 
+// Implementations for Write/Set Commands
+
+core::CanFrame MessagePacker::pack_write_pid_to_ram_command(
+    uint8_t motor_id, uint8_t angle_kp, uint8_t angle_ki, 
+    uint8_t speed_kp, uint8_t speed_ki, uint8_t torque_kp, uint8_t torque_ki)
+{
+    // Command: 0x31
+    core::CanFrame frame = create_command_frame(motor_id, 0x31);
+    // data[0] is command byte (0x31)
+    // data[1] is reserved (0x00), already set by create_command_frame
+    write_u8(frame.data.data(), 2, angle_kp, frame.dlc);
+    write_u8(frame.data.data(), 3, angle_ki, frame.dlc);
+    write_u8(frame.data.data(), 4, speed_kp, frame.dlc);
+    write_u8(frame.data.data(), 5, speed_ki, frame.dlc);
+    write_u8(frame.data.data(), 6, torque_kp, frame.dlc);
+    write_u8(frame.data.data(), 7, torque_ki, frame.dlc);
+    return frame;
+}
+
+core::CanFrame MessagePacker::pack_write_pid_to_rom_command(uint8_t motor_id)
+{
+    // Command: 0x32
+    // Data: No specific data bytes needed for this command.
+    return create_command_frame(motor_id, 0x32);
+}
+
+core::CanFrame MessagePacker::pack_write_encoder_offset_command(uint8_t motor_id, uint16_t encoder_offset)
+{
+    // Command: 0x91
+    core::CanFrame frame = create_command_frame(motor_id, 0x91);
+    // data[0] is command byte (0x91)
+    // data[1-3] are reserved (0x00)
+    // data[4-5] is encoder_offset (little-endian)
+    // data[6-7] are reserved (0x00)
+    write_u16_le(frame.data.data(), 4, encoder_offset, frame.dlc);
+    return frame;
+}
+
+core::CanFrame MessagePacker::pack_clear_motor_error_flags_command(uint8_t motor_id)
+{
+    // Command: 0x9B
+    // Data: No specific data bytes needed for this command.
+    return create_command_frame(motor_id, 0x9B);
+}
+
+core::CanFrame MessagePacker::pack_set_motor_id_command(uint8_t new_motor_id_payload)
+{
+    // Command: 0x79 - Special command, does not use 0x140+motor_id format for CAN ID.
+    // The CAN ID for this command is fixed at 0x79.
+    // The payload new_motor_id_payload is the new ID for the motor.
+    core::CanFrame frame{};
+    frame.id = 0x79;
+    frame.is_extended_id = false;
+    frame.is_rtr = false;
+    frame.dlc = 8; // Protocol typically uses 8 bytes, even if only first is used.
+    frame.data.fill(0U);
+    // data[0] is the new motor ID.
+    write_u8(frame.data.data(), 0, new_motor_id_payload, frame.dlc);
+    // Other bytes (data[1] to data[7]) are typically 0x00 for this command.
+    return frame;
+}
+
+core::CanFrame MessagePacker::pack_set_communication_baud_rate_command(uint8_t motor_id, uint8_t baud_rate_index)
+{
+    // Command: 0xB4 (Setup Controller CAN Rate for RMD-L V1.61)
+    core::CanFrame frame = create_command_frame(motor_id, 0xB4);
+    // data[0] is command byte (0xB4)
+    // data[1-3] are reserved (0x00)
+    // data[4] is baud_rate_index (0: 500kbps, 1: 1Mbps)
+    // data[5-7] are reserved (0x00)
+    if (baud_rate_index > 1) {
+        // Invalid index, could log or default. For now, let it pass through.
+        // Or, clamp: baud_rate_index = (baud_rate_index > 1) ? 1 : baud_rate_index;
+    }
+    write_u8(frame.data.data(), 4, baud_rate_index, frame.dlc);
+    return frame;
+}
+
+
 // Placeholder for actual command packing methods to be added in later subtasks.
 
 } // namespace myactuator_rmd::protocol 
