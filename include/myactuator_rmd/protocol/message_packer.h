@@ -23,70 +23,59 @@ public:
     MessagePacker() = delete;
     ~MessagePacker() = delete;
 
-    // Public static methods for packing specific RMD commands will be declared here
-    // as part of subsequent subtasks. For example:
-    //
-    // static core::CanFrame pack_read_pid_parameters_command(uint8_t motor_id);
-    // static core::CanFrame pack_torque_control_command(uint8_t motor_id, int16_t torque_current);
-    // ... and so on for all commands listed in FR1.1 and FR1.2
+    // Read Commands
+    static core::CanFrame pack_read_pid_data_command(uint8_t motor_id);                     // 0x30
+    static core::CanFrame pack_read_encoder_command(uint8_t motor_id);                      // 0x90
+    static core::CanFrame pack_read_multi_turn_angle_command(uint8_t motor_id);             // 0x92
+    static core::CanFrame pack_read_single_turn_angle_command(uint8_t motor_id);            // 0x94
+    static core::CanFrame pack_read_motor_status_1_command(uint8_t motor_id);               // 0x9A
+    static core::CanFrame pack_read_motor_status_2_command(uint8_t motor_id);               // 0x9C
+    static core::CanFrame pack_read_motor_status_3_command(uint8_t motor_id);               // 0x9D
+    static core::CanFrame pack_read_firmware_version_command(uint8_t motor_id);             // 0x12
+
+    // Write/Control Commands will be added in subsequent subtasks.
+    // static core::CanFrame pack_write_pid_to_ram_command(...);
+    // static core::CanFrame pack_torque_control_command(...);
+    // ...
 
 private:
-    // Helper method to create a basic command frame structure for most single-motor commands.
-    // Most RMD commands share a common CAN ID structure (0x140 + motor_id) and DLC (8).
-    // The first data byte is usually the command byte itself.
-    static core::CanFrame create_base_command_frame(uint8_t motor_id, uint8_t command_byte);
+    // Helper method to create a basic command frame structure.
+    static core::CanFrame create_command_frame(uint8_t motor_id, uint8_t command_byte);
 
     // Static helper methods for writing data types to a CAN frame's data buffer
     // in Little-Endian byte order.
-    // These will be implemented in the .cc file.
+    // Bounds checking is performed in the .cc implementation.
 
     /**
      * @brief Writes a uint8_t value to the buffer at the specified offset.
-     * @param buffer Pointer to the data buffer (uint8_t[8]).
-     * @param offset Offset in bytes from the start of the buffer.
-     * @param value The value to write.
      */
-    static void write_u8(uint8_t* buffer, size_t offset, uint8_t value);
+    static bool write_u8(uint8_t* data_ptr, uint8_t offset, uint8_t value, uint8_t max_size = 8);
 
     /**
      * @brief Writes an int16_t value to the buffer at the specified offset in little-endian.
-     * @param buffer Pointer to the data buffer.
-     * @param offset Offset in bytes.
-     * @param value The value to write.
      */
-    static void write_i16_le(uint8_t* buffer, size_t offset, int16_t value);
+    static bool write_i16_le(uint8_t* data_ptr, uint8_t offset, int16_t value, uint8_t max_size = 8);
 
     /**
      * @brief Writes a uint16_t value to the buffer at the specified offset in little-endian.
-     * @param buffer Pointer to the data buffer.
-     * @param offset Offset in bytes.
-     * @param value The value to write.
      */
-    static void write_u16_le(uint8_t* buffer, size_t offset, uint16_t value);
+    static bool write_u16_le(uint8_t* data_ptr, uint8_t offset, uint16_t value, uint8_t max_size = 8);
 
     /**
      * @brief Writes an int32_t value to the buffer at the specified offset in little-endian.
-     * @param buffer Pointer to the data buffer.
-     * @param offset Offset in bytes.
-     * @param value The value to write.
      */
-    static void write_i32_le(uint8_t* buffer, size_t offset, int32_t value);
+    static bool write_i32_le(uint8_t* data_ptr, uint8_t offset, int32_t value, uint8_t max_size = 8);
 
     /**
      * @brief Writes a uint32_t value to the buffer at the specified offset in little-endian.
-     * @param buffer Pointer to the data buffer.
-     * @param offset Offset in bytes.
-     * @param value The value to write.
      */
-    static void write_u32_le(uint8_t* buffer, size_t offset, uint32_t value);
+    static bool write_u32_le(uint8_t* data_ptr, uint8_t offset, uint32_t value, uint8_t max_size = 8);
+    
+    /**
+     * @brief Writes a float value (as int32_t) to the buffer at the specified offset in little-endian.
+     */
+    static bool write_f32_le(uint8_t* data_ptr, uint8_t offset, float value, uint8_t max_size = 8);
 
-    // Note: The RMD protocol often uses scaled integers instead of direct floats.
-    // If direct float-to-bytes conversion is needed (e.g., for a different protocol or utility),
-    // a write_f32_le could be added, but for RMD, it's usually about packing specific integer types.
-    // static void write_f32_le(uint8_t* buffer, size_t offset, float value);
-
-    // Allow specific command packing methods to be friends if they need direct access
-    // to these write helpers and create_base_command_frame, though typically they would just call them.
 };
 
 } // namespace myactuator_rmd::protocol
