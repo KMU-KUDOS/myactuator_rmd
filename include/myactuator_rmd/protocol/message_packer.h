@@ -52,7 +52,12 @@ public:
     static core::CanFrame pack_motor_stop_command(uint8_t motor_id);                               // 0x81
     static core::CanFrame pack_motor_off_command(uint8_t motor_id);                                // 0x80 (Motor Off / Power Down)
 
-    // Multi-Motor Commands will be added in a subsequent subtask (e.g. 3.6)
+    // Multi-Motor Commands
+    static core::CanFrame pack_multi_motor_torque_control_command(
+        int16_t torque_motor1_scaled, 
+        int16_t torque_motor2_scaled, 
+        int16_t torque_motor3_scaled, 
+        int16_t torque_motor4_scaled);
 
 private:
     // Helper method to create a basic command frame structure.
