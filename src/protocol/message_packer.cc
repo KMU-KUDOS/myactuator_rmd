@@ -242,6 +242,106 @@ core::CanFrame MessagePacker::pack_set_communication_baud_rate_command(uint8_t m
     return frame;
 }
 
+// Implementations for Motion Control Commands
+
+core::CanFrame MessagePacker::pack_torque_control_command(uint8_t motor_id, int16_t torque_current_ma)
+{
+    // Command: 0xA1
+    // Payload: data[4-5] = torque current (int16_t). Range typically -2000 to 2000 for some models.
+    // RMD protocol specifies torque current as Int16, unit 0.01A for some newer versions, or direct mA for others.
+    // Assuming torque_current_ma is the value to be directly packed.
+    core::CanFrame frame = create_command_frame(motor_id, 0xA1);
+    // data[1-3] are reserved (0x00)
+    write_i16_le(frame.data.data(), 4, torque_current_ma, frame.dlc);
+    // data[6-7] are reserved (0x00)
+    return frame;
+}
+
+core::CanFrame MessagePacker::pack_speed_control_command(uint8_t motor_id, int32_t speed_dps_scaled)
+{
+    // Command: 0xA2
+    // Payload: data[4-7] = speed (int32_t, 0.01 dps/LSB)
+    core::CanFrame frame = create_command_frame(motor_id, 0xA2);
+    // data[1-3] are reserved (0x00)
+    write_i32_le(frame.data.data(), 4, speed_dps_scaled, frame.dlc);
+    return frame;
+}
+
+core::CanFrame MessagePacker::pack_position_control_1_command(uint8_t motor_id, int32_t position_deg_scaled)
+{
+    // Command: 0xA3
+    // Payload: data[4-7] = position (int32_t, 0.01 deg/LSB)
+    core::CanFrame frame = create_command_frame(motor_id, 0xA3);
+    // data[1-3] are reserved (0x00)
+    write_i32_le(frame.data.data(), 4, position_deg_scaled, frame.dlc);
+    return frame;
+}
+
+core::CanFrame MessagePacker::pack_position_control_2_command(
+    uint8_t motor_id, uint16_t speed_limit_dps_scaled, int32_t position_deg_scaled)
+{
+    // Command: 0xA4
+    // Payload: data[2-3] = speed limit (uint16_t, 1 dps/LSB)
+    //          data[4-7] = position (int32_t, 0.01 deg/LSB)
+    core::CanFrame frame = create_command_frame(motor_id, 0xA4);
+    // data[1] is reserved (0x00)
+    write_u16_le(frame.data.data(), 2, speed_limit_dps_scaled, frame.dlc);
+    write_i32_le(frame.data.data(), 4, position_deg_scaled, frame.dlc);
+    return frame;
+}
+
+core::CanFrame MessagePacker::pack_position_control_3_command(
+    uint8_t motor_id, uint8_t spin_direction, int16_t position_deg_scaled_short)
+{
+    // Command: 0xA5
+    // Payload: data[1]    = spin direction (0: CW, 1: CCW)
+    //          data[4-5] = position (int16_t, 0.01 deg/LSB)
+    core::CanFrame frame = create_command_frame(motor_id, 0xA5);
+    if (spin_direction > 1) {
+        // Invalid spin_direction, could log or default. Defaulting to 0 (CW).
+        spin_direction = 0;
+    }
+    write_u8(frame.data.data(), 1, spin_direction, frame.dlc);
+    // data[2-3] are reserved (0x00)
+    write_i16_le(frame.data.data(), 4, position_deg_scaled_short, frame.dlc);
+    // data[6-7] are reserved (0x00)
+    return frame;
+}
+
+core::CanFrame MessagePacker::pack_position_control_4_command(
+    uint8_t motor_id, uint8_t spin_direction, 
+    uint16_t speed_limit_dps_scaled, int16_t position_deg_scaled_short)
+{
+    // Command: 0xA6
+    // Payload: data[1]    = spin direction (0: CW, 1: CCW)
+    //          data[2-3] = speed limit (uint16_t, 1 dps/LSB)
+    //          data[4-5] = position (int16_t, 0.01 deg/LSB)
+    core::CanFrame frame = create_command_frame(motor_id, 0xA6);
+    if (spin_direction > 1) {
+        // Invalid spin_direction, could log or default. Defaulting to 0 (CW).
+        spin_direction = 0;
+    }
+    write_u8(frame.data.data(), 1, spin_direction, frame.dlc);
+    write_u16_le(frame.data.data(), 2, speed_limit_dps_scaled, frame.dlc);
+    write_i16_le(frame.data.data(), 4, position_deg_scaled_short, frame.dlc);
+    // data[6-7] are reserved (0x00)
+    return frame;
+}
+
+core::CanFrame MessagePacker::pack_motor_stop_command(uint8_t motor_id)
+{
+    // Command: 0x81
+    // Data: No specific data bytes needed.
+    return create_command_frame(motor_id, 0x81);
+}
+
+core::CanFrame MessagePacker::pack_motor_off_command(uint8_t motor_id)
+{
+    // Command: 0x80 (Motor Off / Power Down)
+    // Data: No specific data bytes needed.
+    return create_command_frame(motor_id, 0x80);
+}
+
 
 // Placeholder for actual command packing methods to be added in later subtasks.
 
