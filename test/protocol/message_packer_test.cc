@@ -280,4 +280,218 @@ TEST_F(MessagePackerTest, PackReadFirmwareVersionCommand) {
     EXPECT_EQ(frame.dlc, 8);
     EXPECT_EQ(frame.data[0], 0x12); // Assuming 0x12 is correct as per previous implementation
     for (size_t i = 1; i < frame.dlc; ++i) EXPECT_EQ(frame.data[i], 0);
+}
+
+// --- Test Cases for Write/Set Command Packing Methods ---
+
+TEST_F(MessagePackerTest, PackWritePidToRamCommand) {
+    uint8_t motor_id = 0x01;
+    uint8_t akp = 10, aki = 20, skp = 30, ski = 40, tkp = 50, tki = 60;
+    CanFrame frame = MessagePacker::pack_write_pid_to_ram_command(motor_id, akp, aki, skp, ski, tkp, tki);
+    EXPECT_EQ(frame.id, 0x140 + motor_id);
+    EXPECT_EQ(frame.dlc, 8);
+    EXPECT_EQ(frame.data[0], 0x31);
+    EXPECT_EQ(frame.data[1], 0x00); // Reserved
+    EXPECT_EQ(frame.data[2], akp);
+    EXPECT_EQ(frame.data[3], aki);
+    EXPECT_EQ(frame.data[4], skp);
+    EXPECT_EQ(frame.data[5], ski);
+    EXPECT_EQ(frame.data[6], tkp);
+    EXPECT_EQ(frame.data[7], tki);
+}
+
+TEST_F(MessagePackerTest, PackWritePidToRomCommand) {
+    uint8_t motor_id = 0x02;
+    CanFrame frame = MessagePacker::pack_write_pid_to_rom_command(motor_id);
+    EXPECT_EQ(frame.id, 0x140 + motor_id);
+    EXPECT_EQ(frame.dlc, 8);
+    EXPECT_EQ(frame.data[0], 0x32);
+    for (size_t i = 1; i < frame.dlc; ++i) EXPECT_EQ(frame.data[i], 0);
+}
+
+TEST_F(MessagePackerTest, PackWriteEncoderOffsetCommand) {
+    uint8_t motor_id = 0x03;
+    uint16_t offset = 0x1234;
+    CanFrame frame = MessagePacker::pack_write_encoder_offset_command(motor_id, offset);
+    EXPECT_EQ(frame.id, 0x140 + motor_id);
+    EXPECT_EQ(frame.dlc, 8);
+    EXPECT_EQ(frame.data[0], 0x91);
+    EXPECT_EQ(frame.data[1], 0x00); // Reserved
+    EXPECT_EQ(frame.data[2], 0x00); // Reserved
+    EXPECT_EQ(frame.data[3], 0x00); // Reserved
+    EXPECT_EQ(frame.data[4], 0x34); // Offset low byte
+    EXPECT_EQ(frame.data[5], 0x12); // Offset high byte
+    EXPECT_EQ(frame.data[6], 0x00); // Reserved
+    EXPECT_EQ(frame.data[7], 0x00); // Reserved
+}
+
+TEST_F(MessagePackerTest, PackClearMotorErrorFlagsCommand) {
+    uint8_t motor_id = 0x04;
+    CanFrame frame = MessagePacker::pack_clear_motor_error_flags_command(motor_id);
+    EXPECT_EQ(frame.id, 0x140 + motor_id);
+    EXPECT_EQ(frame.dlc, 8);
+    EXPECT_EQ(frame.data[0], 0x9B);
+    for (size_t i = 1; i < frame.dlc; ++i) EXPECT_EQ(frame.data[i], 0);
+}
+
+TEST_F(MessagePackerTest, PackSetMotorIdCommand) {
+    uint8_t new_id = 0x05;
+    CanFrame frame = MessagePacker::pack_set_motor_id_command(new_id);
+    EXPECT_EQ(frame.id, 0x79); // Special CAN ID
+    EXPECT_EQ(frame.dlc, 8);
+    EXPECT_EQ(frame.data[0], new_id);
+    for (size_t i = 1; i < frame.dlc; ++i) EXPECT_EQ(frame.data[i], 0);
+}
+
+TEST_F(MessagePackerTest, PackSetCommunicationBaudRateCommand) {
+    uint8_t motor_id = 0x06;
+    uint8_t baud_index = 0x01; // 1 Mbps
+    CanFrame frame = MessagePacker::pack_set_communication_baud_rate_command(motor_id, baud_index);
+    EXPECT_EQ(frame.id, 0x140 + motor_id);
+    EXPECT_EQ(frame.dlc, 8);
+    EXPECT_EQ(frame.data[0], 0xB4);
+    EXPECT_EQ(frame.data[1], 0x00); // Reserved
+    EXPECT_EQ(frame.data[2], 0x00); // Reserved
+    EXPECT_EQ(frame.data[3], 0x00); // Reserved
+    EXPECT_EQ(frame.data[4], baud_index);
+    EXPECT_EQ(frame.data[5], 0x00); // Reserved
+    EXPECT_EQ(frame.data[6], 0x00); // Reserved
+    EXPECT_EQ(frame.data[7], 0x00); // Reserved
+
+    // Test invalid index (should be handled by packer, e.g. clamped or passed as is)
+    // Current implementation passes as is, so test that.
+    uint8_t invalid_baud_index = 0x03;
+    frame = MessagePacker::pack_set_communication_baud_rate_command(motor_id, invalid_baud_index);
+    EXPECT_EQ(frame.data[4], invalid_baud_index);
+}
+
+// --- Test Cases for Motion Control Command Packing Methods ---
+
+TEST_F(MessagePackerTest, PackTorqueControlCommand) {
+    uint8_t motor_id = 0x07;
+    int16_t torque = -1000; // Example value
+    CanFrame frame = MessagePacker::pack_torque_control_command(motor_id, torque);
+    EXPECT_EQ(frame.id, 0x140 + motor_id);
+    EXPECT_EQ(frame.dlc, 8);
+    EXPECT_EQ(frame.data[0], 0xA1);
+    EXPECT_EQ(frame.data[1], 0x00); EXPECT_EQ(frame.data[2], 0x00); EXPECT_EQ(frame.data[3], 0x00);
+    EXPECT_EQ(frame.data[4], static_cast<uint8_t>(torque & 0xFF));
+    EXPECT_EQ(frame.data[5], static_cast<uint8_t>((torque >> 8) & 0xFF));
+    EXPECT_EQ(frame.data[6], 0x00); EXPECT_EQ(frame.data[7], 0x00);
+}
+
+TEST_F(MessagePackerTest, PackSpeedControlCommand) {
+    uint8_t motor_id = 0x08;
+    int32_t speed = 50000; // 500.00 dps
+    CanFrame frame = MessagePacker::pack_speed_control_command(motor_id, speed);
+    EXPECT_EQ(frame.id, 0x140 + motor_id);
+    EXPECT_EQ(frame.dlc, 8);
+    EXPECT_EQ(frame.data[0], 0xA2);
+    EXPECT_EQ(frame.data[1], 0x00); EXPECT_EQ(frame.data[2], 0x00); EXPECT_EQ(frame.data[3], 0x00);
+    EXPECT_EQ(frame.data[4], static_cast<uint8_t>(speed & 0xFF));
+    EXPECT_EQ(frame.data[5], static_cast<uint8_t>((speed >> 8) & 0xFF));
+    EXPECT_EQ(frame.data[6], static_cast<uint8_t>((speed >> 16) & 0xFF));
+    EXPECT_EQ(frame.data[7], static_cast<uint8_t>((speed >> 24) & 0xFF));
+}
+
+TEST_F(MessagePackerTest, PackPositionControl1Command) {
+    uint8_t motor_id = 0x09;
+    int32_t position = 36000; // 360.00 deg
+    CanFrame frame = MessagePacker::pack_position_control_1_command(motor_id, position);
+    EXPECT_EQ(frame.id, 0x140 + motor_id);
+    EXPECT_EQ(frame.dlc, 8);
+    EXPECT_EQ(frame.data[0], 0xA3);
+    EXPECT_EQ(frame.data[1], 0x00); EXPECT_EQ(frame.data[2], 0x00); EXPECT_EQ(frame.data[3], 0x00);
+    EXPECT_EQ(frame.data[4], static_cast<uint8_t>(position & 0xFF));
+    EXPECT_EQ(frame.data[5], static_cast<uint8_t>((position >> 8) & 0xFF));
+    EXPECT_EQ(frame.data[6], static_cast<uint8_t>((position >> 16) & 0xFF));
+    EXPECT_EQ(frame.data[7], static_cast<uint8_t>((position >> 24) & 0xFF));
+}
+
+TEST_F(MessagePackerTest, PackPositionControl2Command) {
+    uint8_t motor_id = 0x0A;
+    uint16_t speed_limit = 100; // 100 dps
+    int32_t position = -18000; // -180.00 deg
+    CanFrame frame = MessagePacker::pack_position_control_2_command(motor_id, speed_limit, position);
+    EXPECT_EQ(frame.id, 0x140 + motor_id);
+    EXPECT_EQ(frame.dlc, 8);
+    EXPECT_EQ(frame.data[0], 0xA4);
+    EXPECT_EQ(frame.data[1], 0x00); // Reserved
+    EXPECT_EQ(frame.data[2], static_cast<uint8_t>(speed_limit & 0xFF));
+    EXPECT_EQ(frame.data[3], static_cast<uint8_t>((speed_limit >> 8) & 0xFF));
+    EXPECT_EQ(frame.data[4], static_cast<uint8_t>(position & 0xFF));
+    EXPECT_EQ(frame.data[5], static_cast<uint8_t>((position >> 8) & 0xFF));
+    EXPECT_EQ(frame.data[6], static_cast<uint8_t>((position >> 16) & 0xFF));
+    EXPECT_EQ(frame.data[7], static_cast<uint8_t>((position >> 24) & 0xFF));
+}
+
+TEST_F(MessagePackerTest, PackPositionControl3Command) {
+    uint8_t motor_id = 0x0B;
+    uint8_t spin_dir = 0x01; // CCW
+    int16_t position = 9000; // 90.00 deg
+    CanFrame frame = MessagePacker::pack_position_control_3_command(motor_id, spin_dir, position);
+    EXPECT_EQ(frame.id, 0x140 + motor_id);
+    EXPECT_EQ(frame.dlc, 8);
+    EXPECT_EQ(frame.data[0], 0xA5);
+    EXPECT_EQ(frame.data[1], spin_dir);
+    EXPECT_EQ(frame.data[2], 0x00); EXPECT_EQ(frame.data[3], 0x00); // Reserved
+    EXPECT_EQ(frame.data[4], static_cast<uint8_t>(position & 0xFF));
+    EXPECT_EQ(frame.data[5], static_cast<uint8_t>((position >> 8) & 0xFF));
+    EXPECT_EQ(frame.data[6], 0x00); EXPECT_EQ(frame.data[7], 0x00); // Reserved
+
+    // Test invalid spin_dir (should default to 0 in current impl)
+    frame = MessagePacker::pack_position_control_3_command(motor_id, 0x03, position);
+    EXPECT_EQ(frame.data[1], 0x00); 
+}
+
+TEST_F(MessagePackerTest, PackPositionControl4Command) {
+    uint8_t motor_id = 0x0C;
+    uint8_t spin_dir = 0x00; // CW
+    uint16_t speed_limit = 50; // 50 dps
+    int16_t position = -4500; // -45.00 deg
+    CanFrame frame = MessagePacker::pack_position_control_4_command(motor_id, spin_dir, speed_limit, position);
+    EXPECT_EQ(frame.id, 0x140 + motor_id);
+    EXPECT_EQ(frame.dlc, 8);
+    EXPECT_EQ(frame.data[0], 0xA6);
+    EXPECT_EQ(frame.data[1], spin_dir);
+    EXPECT_EQ(frame.data[2], static_cast<uint8_t>(speed_limit & 0xFF));
+    EXPECT_EQ(frame.data[3], static_cast<uint8_t>((speed_limit >> 8) & 0xFF));
+    EXPECT_EQ(frame.data[4], static_cast<uint8_t>(position & 0xFF));
+    EXPECT_EQ(frame.data[5], static_cast<uint8_t>((position >> 8) & 0xFF));
+    EXPECT_EQ(frame.data[6], 0x00); EXPECT_EQ(frame.data[7], 0x00); // Reserved
+}
+
+TEST_F(MessagePackerTest, PackMotorStopCommand) {
+    uint8_t motor_id = 0x0D;
+    CanFrame frame = MessagePacker::pack_motor_stop_command(motor_id);
+    EXPECT_EQ(frame.id, 0x140 + motor_id);
+    EXPECT_EQ(frame.dlc, 8);
+    EXPECT_EQ(frame.data[0], 0x81);
+    for (size_t i = 1; i < frame.dlc; ++i) EXPECT_EQ(frame.data[i], 0);
+}
+
+TEST_F(MessagePackerTest, PackMotorOffCommand) {
+    uint8_t motor_id = 0x0E;
+    CanFrame frame = MessagePacker::pack_motor_off_command(motor_id);
+    EXPECT_EQ(frame.id, 0x140 + motor_id);
+    EXPECT_EQ(frame.dlc, 8);
+    EXPECT_EQ(frame.data[0], 0x80);
+    for (size_t i = 1; i < frame.dlc; ++i) EXPECT_EQ(frame.data[i], 0);
+}
+
+// --- Test Case for Multi-Motor Command Packing Method ---
+
+TEST_F(MessagePackerTest, PackMultiMotorTorqueControlCommand) {
+    int16_t t1 = 100, t2 = -200, t3 = 300, t4 = -400;
+    CanFrame frame = MessagePacker::pack_multi_motor_torque_control_command(t1, t2, t3, t4);
+    EXPECT_EQ(frame.id, 0x280);
+    EXPECT_EQ(frame.dlc, 8);
+    EXPECT_EQ(frame.data[0], static_cast<uint8_t>(t1 & 0xFF));
+    EXPECT_EQ(frame.data[1], static_cast<uint8_t>((t1 >> 8) & 0xFF));
+    EXPECT_EQ(frame.data[2], static_cast<uint8_t>(t2 & 0xFF));
+    EXPECT_EQ(frame.data[3], static_cast<uint8_t>((t2 >> 8) & 0xFF));
+    EXPECT_EQ(frame.data[4], static_cast<uint8_t>(t3 & 0xFF));
+    EXPECT_EQ(frame.data[5], static_cast<uint8_t>((t3 >> 8) & 0xFF));
+    EXPECT_EQ(frame.data[6], static_cast<uint8_t>(t4 & 0xFF));
+    EXPECT_EQ(frame.data[7], static_cast<uint8_t>((t4 >> 8) & 0xFF));
 } 
