@@ -42,8 +42,17 @@ public:
     static core::CanFrame pack_set_motor_id_command(uint8_t new_motor_id_payload); // CAN ID fixed to 0x79, payload is new ID.
     static core::CanFrame pack_set_communication_baud_rate_command(uint8_t motor_id, uint8_t baud_rate_index); // 0xB4
 
-    // Motion Control Commands will be added in subsequent subtasks.
-    // static core::CanFrame pack_torque_control_command(...);
+    // Motion Control Commands
+    static core::CanFrame pack_torque_control_command(uint8_t motor_id, int16_t torque_current_ma); // 0xA1 (Torque current is in mA per some docs, or 0.01A/LSB. Assuming direct value from user for now)
+    static core::CanFrame pack_speed_control_command(uint8_t motor_id, int32_t speed_dps_scaled);    // 0xA2 (Speed is 0.01 dps/LSB)
+    static core::CanFrame pack_position_control_1_command(uint8_t motor_id, int32_t position_deg_scaled); // 0xA3 (Position is 0.01 deg/LSB)
+    static core::CanFrame pack_position_control_2_command(uint8_t motor_id, uint16_t speed_limit_dps_scaled, int32_t position_deg_scaled); // 0xA4
+    static core::CanFrame pack_position_control_3_command(uint8_t motor_id, uint8_t spin_direction, int16_t position_deg_scaled_short); // 0xA5 (Position is 0.01 deg/LSB, short int16_t)
+    static core::CanFrame pack_position_control_4_command(uint8_t motor_id, uint8_t spin_direction, uint16_t speed_limit_dps_scaled, int16_t position_deg_scaled_short); // 0xA6
+    static core::CanFrame pack_motor_stop_command(uint8_t motor_id);                               // 0x81
+    static core::CanFrame pack_motor_off_command(uint8_t motor_id);                                // 0x80 (Motor Off / Power Down)
+
+    // Multi-Motor Commands will be added in a subsequent subtask (e.g. 3.6)
 
 private:
     // Helper method to create a basic command frame structure.
