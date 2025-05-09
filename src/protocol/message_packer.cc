@@ -342,6 +342,34 @@ core::CanFrame MessagePacker::pack_motor_off_command(uint8_t motor_id)
     return create_command_frame(motor_id, 0x80);
 }
 
+// Implementation for Multi-Motor Commands
+
+core::CanFrame MessagePacker::pack_multi_motor_torque_control_command(
+    int16_t torque_motor1_scaled, 
+    int16_t torque_motor2_scaled, 
+    int16_t torque_motor3_scaled, 
+    int16_t torque_motor4_scaled)
+{
+    // Command CAN ID: 0x280
+    // This command packs torque values for up to 4 motors.
+    // data[0-1]: Motor 1 torque (int16_t, 0.01A/LSB or mA)
+    // data[2-3]: Motor 2 torque
+    // data[4-5]: Motor 3 torque
+    // data[6-7]: Motor 4 torque
+    core::CanFrame frame{};
+    frame.id = 0x280;
+    frame.is_extended_id = false;
+    frame.is_rtr = false;
+    frame.dlc = 8;
+    frame.data.fill(0U); // Initialize all data to 0, good practice
+
+    write_i16_le(frame.data.data(), 0, torque_motor1_scaled, frame.dlc);
+    write_i16_le(frame.data.data(), 2, torque_motor2_scaled, frame.dlc);
+    write_i16_le(frame.data.data(), 4, torque_motor3_scaled, frame.dlc);
+    write_i16_le(frame.data.data(), 6, torque_motor4_scaled, frame.dlc);
+
+    return frame;
+}
 
 // Placeholder for actual command packing methods to be added in later subtasks.
 
