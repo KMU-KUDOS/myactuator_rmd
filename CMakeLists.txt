@@ -143,6 +143,28 @@ if(BUILD_TESTING)
   # If you have multiple test source files for this target, list them all in add_executable
   # and in the ament_add_gtest call or use a glob if preferred (though explicit is better).
 
+  # Add the test executable for MessagePacker
+  add_executable(message_packer_test
+    test/protocol/message_packer_test.cc
+  )
+  # Link the test executable against our library and GTest/GMock
+  target_link_libraries(message_packer_test
+    PRIVATE
+    myactuator_rmd_lib      # The library containing MessagePacker
+    GTest::gtest
+    GTest::gtest_main
+    GTest::gmock            # Though not used yet, good to include for consistency
+    GTest::gmock_main
+    # Abseil dependencies might be needed if MessagePacker uses them heavily
+    # and those parts are tested directly or indirectly.
+    # For now, assume they are linked via myactuator_rmd_lib if needed.
+  )
+
+  # Add the MessagePacker test to CTest using ament_cmake_gtest
+  ament_add_gtest(message_packer_test
+    test/protocol/message_packer_test.cc
+  )
+
   # Add linters if desired (example)
   # find_package(ament_lint_auto REQUIRED)
   # ament_lint_auto_find_test_dependencies()
