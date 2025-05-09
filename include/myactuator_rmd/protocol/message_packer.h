@@ -33,10 +33,17 @@ public:
     static core::CanFrame pack_read_motor_status_3_command(uint8_t motor_id);               // 0x9D
     static core::CanFrame pack_read_firmware_version_command(uint8_t motor_id);             // 0x12
 
-    // Write/Control Commands will be added in subsequent subtasks.
-    // static core::CanFrame pack_write_pid_to_ram_command(...);
+    // Write/Set Commands
+    static core::CanFrame pack_write_pid_to_ram_command(uint8_t motor_id, uint8_t angle_kp, uint8_t angle_ki, uint8_t speed_kp, uint8_t speed_ki, uint8_t torque_kp, uint8_t torque_ki); // 0x31
+    static core::CanFrame pack_write_pid_to_rom_command(uint8_t motor_id);                     // 0x32
+    static core::CanFrame pack_write_encoder_offset_command(uint8_t motor_id, uint16_t encoder_offset); // 0x91
+    static core::CanFrame pack_clear_motor_error_flags_command(uint8_t motor_id);            // 0x9B
+    // Note: Set Motor ID (0x79) uses a fixed CAN ID of 0x79. current_motor_id might be for addressing before change.
+    static core::CanFrame pack_set_motor_id_command(uint8_t new_motor_id_payload); // CAN ID fixed to 0x79, payload is new ID.
+    static core::CanFrame pack_set_communication_baud_rate_command(uint8_t motor_id, uint8_t baud_rate_index); // 0xB4
+
+    // Motion Control Commands will be added in subsequent subtasks.
     // static core::CanFrame pack_torque_control_command(...);
-    // ...
 
 private:
     // Helper method to create a basic command frame structure.
