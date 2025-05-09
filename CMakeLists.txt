@@ -114,26 +114,39 @@ option(BUILD_TESTING "Build tests" ON)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
-  find_package(ament_lint_auto REQUIRED)
-  find_package(ament_lint_common REQUIRED)
+  find_package(GTest REQUIRED)
 
-  # Google Test (already declared with FetchContent, ensure it's available)
-  # FetchContent_MakeAvailable(googletest) # Already done above if not conditional
+  # Add the test executable for CanInterface
+  add_executable(can_interface_test
+    test/core/can_interface_test.cc
+  )
+  # Link the test executable against our library and GTest/GMock
+  target_link_libraries(can_interface_test
+    PRIVATE
+    myactuator_rmd_lib
+    GTest::gtest
+    GTest::gtest_main
+    GTest::gmock
+    GTest::gmock_main
+    # Add Abseil libraries needed by tests if not already linked by myactuator_rmd_lib
+    # For example, if status/time are used directly in test assertions:
+    absl::status
+    absl::time
+    absl::log_initialize # If Abseil logging is used directly in tests
+  )
 
-  # Example for a test executable (placeholder)
-  # add_executable(example_test test/example_test.cpp)
-  # ament_target_dependencies(example_test
-  #   myactuator_rmd_lib
-  #   # GTest::gtest_main # Modern CMake target for Google Test
-  # )
-  # target_link_libraries(example_test PRIVATE GTest::gtest_main GTest::gmock) # If using gmock
-  # 
-  # ament_add_gtest(example_test test/example_test.cpp)
-  # target_link_libraries(example_test myactuator_rmd_lib GTest::gtest_main)
+  # Add the test to CTest using ament_cmake_gtest
+  ament_add_gtest(can_interface_test
+    test/core/can_interface_test.cc
+  )
+  # If you have multiple test source files for this target, list them all in add_executable
+  # and in the ament_add_gtest call or use a glob if preferred (though explicit is better).
 
-  # Linters
-  ament_lint_auto_find_test_dependencies()
-  ament_lint_common() # Add common linters
+  # Add linters if desired (example)
+  # find_package(ament_lint_auto REQUIRED)
+  # ament_lint_auto_find_test_dependencies()
+  # ament_lint_auto_add_test(myactuator_rmd_lib)
+
 endif()
 
 # This ensures all build, install, and export logic is correctly processed by ament.
