@@ -1,0 +1,6 @@
+[submodule "myactuator_rmd"]
+	path = myactuator_rmd
+	url = https://github.com/2b-t/myactuator_rmd.git
+[submodule "myactuator_rmd_ros"]
+	path = myactuator_rmd_ros
+	url = https://github.com/2b-t/myactuator_rmd_ros.git
