@@ -1,7 +1,7 @@
 /**
  * \file requests.hpp
  * \mainpage
- *    Contains all the requests sent from the driver to the actuator
+ *    Contains all the requests sent from the driver to the actuator for V1.61 protocol
  * \author
  *    Tobit Flatscher (github.com/2b-t)
 */
@@ -22,31 +22,23 @@
 
 namespace myactuator_rmd {
   
-  using GetAccelerationRequest = SingleMotorRequest<CommandType::READ_ACCELERATION>;
+  // PID Commands
   using GetControllerGainsRequest = SingleMotorRequest<CommandType::READ_PID_PARAMETERS>;
-  using GetControlModeRequest = SingleMotorRequest<CommandType::READ_SYSTEM_OPERATING_MODE>;
-  using GetMotorModelRequest =  SingleMotorRequest<CommandType::READ_MOTOR_MODEL>;
-  using GetMotorPowerRequest =  SingleMotorRequest<CommandType::READ_MOTOR_POWER>;
+  
+  // Motor Status Commands
   using GetMotorStatus1Request = SingleMotorRequest<CommandType::READ_MOTOR_STATUS_1_AND_ERROR_FLAG>;
-  using GetMotorStatus2Request =  SingleMotorRequest<CommandType::READ_MOTOR_STATUS_2>;
+  using GetMotorStatus2Request = SingleMotorRequest<CommandType::READ_MOTOR_STATUS_2>;
   using GetMotorStatus3Request = SingleMotorRequest<CommandType::READ_MOTOR_STATUS_3>;
+  
+  // Encoder Commands
   using GetMultiTurnAngleRequest = SingleMotorRequest<CommandType::READ_MULTI_TURN_ANGLE>;
-  using GetMultiTurnEncoderPositionRequest = SingleMotorRequest<CommandType::READ_MULTI_TURN_ENCODER_POSITION>;
-  using GetMultiTurnEncoderOriginalPositionRequest = SingleMotorRequest<CommandType::READ_MULTI_TURN_ENCODER_ORIGINAL_POSITION>;
-  using GetMultiTurnEncoderZeroOffsetRequest = SingleMotorRequest<CommandType::READ_MULTI_TURN_ENCODER_ZERO_OFFSET>;
   using GetSingleTurnAngleRequest = SingleMotorRequest<CommandType::READ_SINGLE_TURN_ANGLE>;
   using GetSingleTurnEncoderPositionRequest = SingleMotorRequest<CommandType::READ_SINGLE_TURN_ENCODER>;
-  using GetSystemRuntimeRequest = SingleMotorRequest<CommandType::READ_SYSTEM_RUNTIME>;
-  using GetVersionDateRequest = SingleMotorRequest<CommandType::READ_SYSTEM_SOFTWARE_VERSION_DATE>;
-  using LockBrakeRequest = SingleMotorRequest<CommandType::LOCK_BRAKE>;
-  using ReleaseBrakeRequest = SingleMotorRequest<CommandType::RELEASE_BRAKE>;
-  using ResetRequest = SingleMotorRequest<CommandType::RESET_SYSTEM>;
   using SetCurrentPositionAsEncoderZeroRequest = SingleMotorRequest<CommandType::WRITE_CURRENT_MULTI_TURN_POSITION_TO_ROM_AS_ZERO>;
 
-  /**\class CanIdRequest
-   * \brief
-   *    Request for getting/setting the CAN ID of the actuator
-  */
+  // Note: CAN_ID_SETTING command is removed in V1.61 protocol
+  // The following class is kept for reference but should not be used
+  /*
   class CanIdRequest: public SingleMotorRequest<CommandType::CAN_ID_SETTING> {
     public:
       using SingleMotorRequest::SingleMotorRequest;
@@ -106,11 +98,11 @@ namespace myactuator_rmd {
       [[nodiscard]]
       std::uint16_t getCanId() const noexcept;
   };
-
-  /**\class SetAccelerationRequest
-   * \brief
-   *    Request for setting the maximum acceleration/deceleration of the actuator
   */
+
+  // Note: WRITE_ACCELERATION_TO_RAM_AND_ROM command is removed in V1.61 protocol
+  // The following class is kept for reference but should not be used
+  /*
   class SetAccelerationRequest: public SingleMotorRequest<CommandType::WRITE_ACCELERATION_TO_RAM_AND_ROM> {
     public:
       /**\fn SetAccelerationRequest
@@ -150,11 +142,11 @@ namespace myactuator_rmd {
       [[nodiscard]]
       AccelerationType getMode() const noexcept;
   };
-
-  /**\class SetCanBaudRateRequest
-   * \brief
-   *    Request for setting the Baud rate of the actuator
   */
+
+  // Note: COMMUNICATION_BAUD_RATE_SETTING command is removed in V1.61 protocol
+  // The following class is kept for reference but should not be used
+  /*
   class SetCanBaudRateRequest: public SingleMotorRequest<CommandType::COMMUNICATION_BAUD_RATE_SETTING> {
     public:
       SetCanBaudRateRequest(CanBaudRate const baud_rate);
@@ -174,11 +166,11 @@ namespace myactuator_rmd {
       [[nodiscard]]
       CanBaudRate getBaudRate() const noexcept;
   };
-
-  /**\class SetEncoderZeroRequest
-   * \brief
-   *    Request for setting the encoder zero to a given value
   */
+
+  // Note: WRITE_ENCODER_MULTI_TURN_VALUE_TO_ROM_AS_ZERO command is removed in V1.61 protocol
+  // The following class is kept for reference but should not be used
+  /*
   class SetEncoderZeroRequest: public SingleMotorRequest<CommandType::WRITE_ENCODER_MULTI_TURN_VALUE_TO_ROM_AS_ZERO> {
     public:
       SetEncoderZeroRequest(std::int32_t const encoder_offset);
@@ -198,6 +190,7 @@ namespace myactuator_rmd {
       [[nodiscard]]
       std::int32_t getEncoderZero() const noexcept;
   };
+  */
 
   /**\class SetGainsRequest
    * \brief
@@ -305,10 +298,9 @@ namespace myactuator_rmd {
       float getPosition() const noexcept;
   };
 
-  /**\class SetTimeoutRequest
-   * \brief
-   *    Request for setting the communication interruption protection time setting
-  */
+  // Note: COMMUNICATION_INTERRUPTION_PROTECTION_TIME_SETTING command is removed in V1.61 protocol
+  // The following class is kept for reference but should not be used
+  /*
   class SetTimeoutRequest: public SingleMotorRequest<CommandType::COMMUNICATION_INTERRUPTION_PROTECTION_TIME_SETTING> {
     public:
       /**\fn SetTimeoutRequest
@@ -336,6 +328,7 @@ namespace myactuator_rmd {
       [[nodiscard]]
       std::chrono::milliseconds getTimeout() const noexcept;
   };
+  */
 
   /**\class SetTorqueRequest
    * \brief
